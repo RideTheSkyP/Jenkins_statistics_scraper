@@ -1,1 +1,3 @@
 .idea
+.secret_key
+jenkins_scraper/__pycache__
