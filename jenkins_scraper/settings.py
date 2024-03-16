@@ -8,11 +8,11 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # See https://docs.djangoproject.com/en/5.0/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-with open(BASE_DIR / '.secretkey') as f:
+with open(BASE_DIR / '.secret_key') as f:
     SECRET_KEY = f.read().strip()
 
-with open(BASE_DIR / '.mysql_pass') as f:
-    MYSQL_DB_PASS = f.read().strip()
+# with open(BASE_DIR / '.mysql_pass') as f:
+#     MYSQL_DB_PASS = f.read().strip()
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
