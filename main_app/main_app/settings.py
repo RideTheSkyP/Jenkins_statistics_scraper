@@ -3,7 +3,6 @@ from pathlib import Path
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/5.0/howto/deployment/checklist/
 
@@ -47,12 +46,13 @@ MIDDLEWARE = [
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
 
-ROOT_URLCONF = 'jenkins_scraper.urls'
+ROOT_URLCONF = 'main_app.urls'
 
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [BASE_DIR / 'jenkins_scraper/templates'],
+        'DIRS': [BASE_DIR / 'main_app/templates', BASE_DIR / 'jenkins_statistics/templates',
+                 BASE_DIR / 'rest_api/templates'],
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
@@ -68,7 +68,7 @@ TEMPLATES = [
 MESSAGE_STORAGE = 'django.contrib.messages.storage.cookie.CookieStorage'
 MESSAGE_LEVEL = 10
 
-WSGI_APPLICATION = 'jenkins_scraper.wsgi.application'
+WSGI_APPLICATION = 'main_app.wsgi.application'
 
 
 # Database

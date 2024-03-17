@@ -1,6 +1,8 @@
 .idea
-.secret_key
-jenkins_scraper/__pycache__
-rest_api/__pycache__
-rest_api/migrations/__pycache__
-db.sqlite3
+main_app/.secret_key
+main_app/main_app/__pycache__
+main_app/rest_api/__pycache__
+main_app/rest_api/migrations/__pycache__
+main_app/jenkins_statistics/__pycache__
+main_app/jenkins_statistics/migrations/__pycache__
+main_app/db.sqlite3
