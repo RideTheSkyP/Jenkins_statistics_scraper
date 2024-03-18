@@ -6,4 +6,6 @@ main_app/rest_api/migrations/__pycache__
 main_app/jenkins_statistics/__pycache__
 main_app/jenkins_statistics/migrations/__pycache__
 main_app/db.sqlite3
-scrap_info_script
+scrap_info_script/__pycache__
+scrap_builds_to_dashboard.log
+test.py

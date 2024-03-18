@@ -11,6 +11,6 @@ urlpatterns = [
     path('', views.index, name='index'),
     path('test_results', views.test_results, name='test_results'),
     path('test_failures', views.test_failures, name='test_failures'),
-    path(r'^media/(?P<path>.*)$', serve, {'document_root': settings.MEDIA_ROOT}),
-    path(r'^static/(?P<path>.*)$', serve, {'document_root': settings.STATIC_ROOT})
-]
+    re_path(r'^media/(?P<path>.*)$', serve, {'document_root': settings.MEDIA_ROOT}),
+    re_path(r'^static/(?P<path>.*)$', serve, {'document_root': settings.STATIC_ROOT})
+] + static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)

@@ -12,4 +12,4 @@ urlpatterns = [
     path('api-auth/', include('rest_framework.urls')),
     path('', include('jenkins_statistics.urls', namespace='statistics')),
     # path('api/', include(api_urls)),
-] + static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)
+]
