@@ -1,12 +1,15 @@
-from django.contrib import admin
-from django.conf import settings
-from django.views.static import serve
-from django.urls import include, path, re_path
-from django.conf.urls.static import static
+from django.urls import path
 
 from . import views
 
 app_name = 'rest_api'
 urlpatterns = [
-    path('', views.index, name='index'),
+    path('jobs/', views.JobListApiView.as_view()),
+    path('jobs/<int:job>', views.JobDetailApiView.as_view()),
+    path('jobs/<str:job>', views.JobDetailApiView.as_view()),
+    path('builds/', views.BuildListApiView.as_view()),
+    path('builds/<int:build_id>', views.BuildDetailApiView.as_view()),
+    path('job_results/', views.JobResultListApiView.as_view()),
+    path('job_results/<int:job_result>', views.JobResultDetailApiView.as_view()),
+    path('job_results/<str:job_result>', views.JobResultDetailApiView.as_view())
 ]
