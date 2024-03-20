@@ -75,7 +75,7 @@ class BuildListApiView(ListCreateAPIView):
     serializer_class = BuildSerializer
 
     def post(self, request, *args, **kwargs):
-        data = {'job': request.data.get('job'),
+        data = {'job_id': request.data.get('job_id'),
                 'build_number': request.data.get('build_number'),
                 'build_timestamp': request.data.get('build_timestamp')}
         serializer = BuildSerializer(data=data)
@@ -86,11 +86,11 @@ class BuildListApiView(ListCreateAPIView):
 
     def get_queryset(self):
         queryset = Build.objects.all()
-        job = self.request.query_params.get('job')
+        job_id = self.request.query_params.get('job_id')
         build_number = self.request.query_params.get('build_number')
 
-        if job is not None:
-            queryset = queryset.filter(job=job)
+        if job_id is not None:
+            queryset = queryset.filter(job_id=job_id)
         if build_number is not None:
             queryset = queryset.filter(build_number=build_number)
         return queryset
@@ -116,7 +116,7 @@ class BuildDetailApiView(APIView):
         build_instance = self.get_object_by_id(build_id)
         if not build_instance:
             return Response({'res': 'Object with build id does not exist.'}, status=status.HTTP_400_BAD_REQUEST)
-        data = {'job': request.data.get('job'),
+        data = {'job_id': request.data.get('job_id'),
                 'build_number': request.data.get('build_number'),
                 'build_timestamp': request.data.get('build_timestamp')}
         serializer = BuildSerializer(instance=build_instance, data=data, partial=True)
@@ -138,8 +138,8 @@ class JobResultListApiView(ListCreateAPIView):
     serializer_class = JobResultsSerializer
 
     def post(self, request, *args, **kwargs):
-        data = {'job': request.data.get('job_name'),
-                'build': request.data.get('build'),
+        data = {'job_id': request.data.get('job_id'),
+                'build_id': request.data.get('build_id'),
                 'build_url': request.data.get('build_url'),
                 'build_result': request.data.get('build_result'),
                 'build_git_sha': request.data.get('build_git_sha')}
@@ -151,17 +151,17 @@ class JobResultListApiView(ListCreateAPIView):
 
     def get_queryset(self):
         queryset = JobResults.objects.all()
-        job = self.request.query_params.get('job_name')
-        build_number = self.request.query_params.get('build_number')
+        job_id = self.request.query_params.get('job_id')
+        build_id = self.request.query_params.get('build_id')
         build_result = self.request.query_params.get('build_result')
 
-        if job is not None:
-            queryset = queryset.filter(job_name=job)
-        if build_number is not None:
-            queryset = queryset.filter(build_number=build_number)
+        if job_id is not None:
+            queryset = queryset.filter(job_id=job_id)
+        if build_id is not None:
+            queryset = queryset.filter(build_id=build_id)
         if build_result is not None:
             queryset = queryset.filter(job_result=build_result)
-        return queryset.order_by('-build_number')
+        return queryset.order_by('-build_id')
 
 
 class JobResultDetailApiView(APIView):
@@ -170,8 +170,6 @@ class JobResultDetailApiView(APIView):
         try:
             if isinstance(job_result, int):
                 return JobResults.objects.get(id=job_result)
-            elif isinstance(job_result, str):
-                return JobResults.objects.get(pipeline_name=job_result)
         except Job.DoesNotExist:
             return None
 
@@ -187,8 +185,8 @@ class JobResultDetailApiView(APIView):
         job_result_instance = self.get_object(job_result)
         if not job_result_instance:
             return Response({'res': 'Object with build id does not exist.'}, status=status.HTTP_400_BAD_REQUEST)
-        data = {'job': request.data.get('job_name'),
-                'build': request.data.get('build'),
+        data = {'job_id': request.data.get('job_id'),
+                'build_id': request.data.get('build_id'),
                 'build_url': request.data.get('build_url'),
                 'build_result': request.data.get('build_result'),
                 'build_git_sha': request.data.get('build_git_sha')}

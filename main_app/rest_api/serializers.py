@@ -10,17 +10,17 @@ class JobSerializer(serializers.ModelSerializer):
 
 
 class BuildSerializer(serializers.ModelSerializer):
-    job = serializers.SlugRelatedField(slug_field='id', queryset=Job.objects.all())
+    job_id = serializers.SlugRelatedField(slug_field='id', queryset=Job.objects.all())
 
     class Meta:
         model = Build
-        fields = ['id', 'job', 'build_number', 'build_timestamp']
+        fields = ['id', 'job_id', 'build_number', 'build_timestamp']
 
 
 class JobResultsSerializer(serializers.ModelSerializer):
-    job = serializers.SlugRelatedField(slug_field='id', queryset=Job.objects.all())
-    build = serializers.SlugRelatedField(slug_field='id', queryset=Job.objects.all())
+    job_id = serializers.SlugRelatedField(slug_field='id', queryset=Job.objects.all())
+    build_id = serializers.SlugRelatedField(slug_field='id', queryset=Build.objects.all())
 
     class Meta:
         model = JobResults
-        fields = ['id', 'job', 'build', 'build_url', 'build_result', 'build_git_sha']
+        fields = ['id', 'job_id', 'build_id', 'build_url', 'build_result', 'build_git_sha']

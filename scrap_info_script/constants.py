@@ -1,3 +1,6 @@
 db_filename = 'db.sqlite3'
 jenkins_api_token = '.jenkins_token'
 jenkins_base_url = 'http://localhost:8080/'
+site_jobs_rest_api = 'http://127.0.0.1:8000/api/jobs/'
+site_builds_rest_api = 'http://127.0.0.1:8000/api/builds/'
+site_job_results_rest_api = 'http://127.0.0.1:8000/api/job_results/'
