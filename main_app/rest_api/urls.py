@@ -4,6 +4,9 @@ from . import views
 
 app_name = 'rest_api'
 urlpatterns = [
+    path('pipelines/', views.PipelineListApiView.as_view()),
+    path('pipelines/<int:pipeline>', views.PipelineDetailApiView.as_view()),
+    path('pipelines/<str:pipeline>', views.PipelineDetailApiView.as_view()),
     path('jobs/', views.JobListApiView.as_view()),
     path('jobs/<int:job>', views.JobDetailApiView.as_view()),
     path('jobs/<str:job>', views.JobDetailApiView.as_view()),

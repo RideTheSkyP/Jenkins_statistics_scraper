@@ -1,20 +1,19 @@
-from django.shortcuts import render
+from rest_framework import status
 from rest_framework.views import APIView
 from rest_framework.response import Response
-from rest_framework import status, permissions
 from rest_framework.generics import ListCreateAPIView
 
-from jenkins_statistics.models import Job, Build, JobResults
-from .serializers import JobSerializer, BuildSerializer, JobResultsSerializer
+from jenkins_statistics.models import Pipeline, Job, Build, JobResults
+from .serializers import PipelineSerializer, JobSerializer, BuildSerializer, JobResultsSerializer
 
 
-class JobListApiView(ListCreateAPIView):
+class PipelineListApiView(ListCreateAPIView):
     # permission_classes = [permissions.IsAuthenticated]
-    serializer_class = JobSerializer
+    serializer_class = PipelineSerializer
 
     def post(self, request, *args, **kwargs):
-        data = {'job_name': request.data.get('job_name')}
-        serializer = JobSerializer(data=data)
+        data = {'pipeline_name': request.data.get('pipeline_name')}
+        serializer = PipelineSerializer(data=data)
         if serializer.is_valid():
             serializer.save()
             return Response(serializer.data, status=status.HTTP_201_CREATED)
@@ -22,9 +21,75 @@ class JobListApiView(ListCreateAPIView):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
     def get_queryset(self):
+        queryset = Pipeline.objects.all()
+        pipeline_id = self.request.query_params.get('id')
+        pipeline_name = self.request.query_params.get('pipeline_name')
+        if pipeline_id is not None:
+            queryset = queryset.filter(id=pipeline_id)
+        if pipeline_name is not None:
+            queryset = queryset.filter(pipeline_name=pipeline_name)
+        return queryset
+
+
+class PipelineDetailApiView(APIView):
+    # permission_classes = [permissions.IsAuthenticated]
+    def get_object(self, pipeline):
+        try:
+            if isinstance(pipeline, int):
+                return Pipeline.objects.get(id=pipeline)
+            elif isinstance(pipeline, str):
+                return Pipeline.objects.get(pipeline_name=pipeline)
+        except Pipeline.DoesNotExist:
+            return None
+
+    def get(self, request, pipeline, *args, **kwargs):
+        pipeline_instance = self.get_object(pipeline)
+        if not pipeline_instance:
+            return Response({'res': 'Object with pipeline id does not exist.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        serializer = PipelineSerializer(pipeline_instance)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+    def put(self, request, pipeline, *args, **kwargs):
+        pipeline_instance = self.get_object(pipeline)
+        if not pipeline_instance:
+            return Response({'res': 'Object with pipeline id does not exist.'}, status=status.HTTP_400_BAD_REQUEST)
+        data = {'pipeline_name': request.data.get('pipeline_name')}
+        serializer = PipelineSerializer(instance=pipeline_instance, data=data, partial=True)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data, status=status.HTTP_200_OK)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    def delete(self, request, pipeline, *args, **kwargs):
+        pipeline_instance = self.get_object(pipeline)
+        if not pipeline_instance:
+            return Response({'res': 'Object with pipeline id does not exist.'}, status=status.HTTP_400_BAD_REQUEST)
+        pipeline_instance.delete()
+        return Response({'res': 'Object deleted!'}, status=status.HTTP_200_OK)
+
+
+class JobListApiView(ListCreateAPIView):
+    # permission_classes = [permissions.IsAuthenticated]
+    serializer_class = JobSerializer
+
+    def post(self, request, *args, **kwargs):
+        data = {'pipeline': request.data.get('pipeline_id'),
+                'job_name': request.data.get('job_name')}
+        serializer = JobSerializer(data=data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    def get_queryset(self):
         queryset = Job.objects.all()
+        pipeline_id = self.request.query_params.get('pipeline_id')
         job_id = self.request.query_params.get('id')
         job_name = self.request.query_params.get('job_name')
+
+        if pipeline_id is not None:
+            queryset = queryset.filter(pipeline=pipeline_id)
         if job_id is not None:
             queryset = queryset.filter(id=job_id)
         if job_name is not None:
@@ -55,7 +120,8 @@ class JobDetailApiView(APIView):
         job_instance = self.get_object(job)
         if not job_instance:
             return Response({'res': 'Object with job id does not exist.'}, status=status.HTTP_400_BAD_REQUEST)
-        data = {'job_name': request.data.get('job_name')}
+        data = {'pipeline': request.data.get('pipeline_id'),
+                'job_name': request.data.get('job_name')}
         serializer = JobSerializer(instance=job_instance, data=data, partial=True)
         if serializer.is_valid():
             serializer.save()
@@ -65,9 +131,9 @@ class JobDetailApiView(APIView):
     def delete(self, request, job, *args, **kwargs):
         job_instance = self.get_object(job)
         if not job_instance:
-            return Response({"res": "Object with job id does not exist."}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({'res': 'Object with job id does not exist.'}, status=status.HTTP_400_BAD_REQUEST)
         job_instance.delete()
-        return Response({"res": "Object deleted!"}, status=status.HTTP_200_OK)
+        return Response({'res': 'Object deleted!'}, status=status.HTTP_200_OK)
 
 
 class BuildListApiView(ListCreateAPIView):
@@ -75,7 +141,7 @@ class BuildListApiView(ListCreateAPIView):
     serializer_class = BuildSerializer
 
     def post(self, request, *args, **kwargs):
-        data = {'job_id': request.data.get('job_id'),
+        data = {'job': request.data.get('job_id'),
                 'build_number': request.data.get('build_number'),
                 'build_timestamp': request.data.get('build_timestamp')}
         serializer = BuildSerializer(data=data)
@@ -87,10 +153,13 @@ class BuildListApiView(ListCreateAPIView):
     def get_queryset(self):
         queryset = Build.objects.all()
         job_id = self.request.query_params.get('job_id')
+        build_id = self.request.query_params.get('build_id')
         build_number = self.request.query_params.get('build_number')
 
         if job_id is not None:
-            queryset = queryset.filter(job_id=job_id)
+            queryset = queryset.filter(job=job_id)
+        if build_id is not None:
+            queryset = queryset.filter(id=build_id)
         if build_number is not None:
             queryset = queryset.filter(build_number=build_number)
         return queryset
@@ -116,7 +185,7 @@ class BuildDetailApiView(APIView):
         build_instance = self.get_object_by_id(build_id)
         if not build_instance:
             return Response({'res': 'Object with build id does not exist.'}, status=status.HTTP_400_BAD_REQUEST)
-        data = {'job_id': request.data.get('job_id'),
+        data = {'job': request.data.get('job_id'),
                 'build_number': request.data.get('build_number'),
                 'build_timestamp': request.data.get('build_timestamp')}
         serializer = BuildSerializer(instance=build_instance, data=data, partial=True)
@@ -138,8 +207,9 @@ class JobResultListApiView(ListCreateAPIView):
     serializer_class = JobResultsSerializer
 
     def post(self, request, *args, **kwargs):
-        data = {'job_id': request.data.get('job_id'),
-                'build_id': request.data.get('build_id'),
+        data = {'pipeline': request.data.get('pipeline_id'),
+                'job': request.data.get('job_id'),
+                'build': request.data.get('build_id'),
                 'build_url': request.data.get('build_url'),
                 'build_result': request.data.get('build_result'),
                 'build_git_sha': request.data.get('build_git_sha')}
@@ -151,17 +221,20 @@ class JobResultListApiView(ListCreateAPIView):
 
     def get_queryset(self):
         queryset = JobResults.objects.all()
+        pipeline_id = self.request.query_params.get('pipeline_id'),
         job_id = self.request.query_params.get('job_id')
         build_id = self.request.query_params.get('build_id')
         build_result = self.request.query_params.get('build_result')
 
+        if pipeline_id is not None:
+            queryset = queryset.filter(pipeline_id=pipeline_id)
         if job_id is not None:
             queryset = queryset.filter(job_id=job_id)
         if build_id is not None:
             queryset = queryset.filter(build_id=build_id)
         if build_result is not None:
             queryset = queryset.filter(job_result=build_result)
-        return queryset.order_by('-build_id')
+        return queryset.order_by('-build')
 
 
 class JobResultDetailApiView(APIView):
@@ -185,8 +258,8 @@ class JobResultDetailApiView(APIView):
         job_result_instance = self.get_object(job_result)
         if not job_result_instance:
             return Response({'res': 'Object with build id does not exist.'}, status=status.HTTP_400_BAD_REQUEST)
-        data = {'job_id': request.data.get('job_id'),
-                'build_id': request.data.get('build_id'),
+        data = {'job': request.data.get('job_id'),
+                'build': request.data.get('build_id'),
                 'build_url': request.data.get('build_url'),
                 'build_result': request.data.get('build_result'),
                 'build_git_sha': request.data.get('build_git_sha')}
