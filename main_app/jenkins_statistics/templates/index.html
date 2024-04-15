@@ -1,9 +1,303 @@
 {% extends 'base.html' %}
 
 {% block body_header %}
+    <!-- Load d3.js -->
+    <script src='https://d3js.org/d3.v4.js'></script>
+    <!-- Load color palettes -->
+    <script src='https://d3js.org/d3-scale-chromatic.v1.min.js'></script>
     <link rel='stylesheet' href='https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/fontawesome.min.css' integrity='sha512-d0olNN35C6VLiulAobxYHZiXJmq+vl+BGIgAxQtD5+kqudro/xNMvv2yIHAciGHpExsIbKX3iLg+0B6d0k4+ZA==' crossorigin='anonymous' referrerpolicy='no-referrer' />
-    <body onload=''>
+    <body onload='plot_manager(15)'>
 {% endblock %}
 
 {% block body_content %}
+    <div class='vertical-menu toggled d-none' id='vertical-menu'></div>
+    <button class='hide-button btn btn-info float-right sticky-top' onclick='show_menu()'><i class='hide-button fa fa-bars'>Menu</i></button>
+
+    <div class='inBody'>
+        <br>
+        <form id='buildsForm'>
+            <label for='buildsSelect'>Choose amount of builds to plot:</label>
+            <input type='text' name='builds' id='answerInput' list='buildsSelect' placeholder='Enter here specific number of builds'>
+            <datalist id='buildsSelect'>
+                <option data-value='15'>15 builds</option>
+                <option data-value='30'>30 builds</option>
+                <option data-value='60'>60 builds</option>
+            </datalist>
+            <input type='hidden' name='answer' id='answerInput-hidden' value='15'>
+            <input type='submit' class='btn btn-info'>
+        </form>
+
+        <div id='plot'></div>
+        <div id='legend'></div>
+    </div>
+
+    <script>
+        window.addEventListener('scroll', menuHighlighter);
+        window.addEventListener('onclick', menuHighlighter);
+
+        function menuHighlighter() {
+            let scrollY = window.pageYOffset;
+            const sections = document.querySelectorAll('section[id]');
+
+            sections.forEach(current => {
+                const sectionHeight = current.offsetHeight;
+                const sectionTop = (current.getBoundingClientRect().top + window.pageYOffset) - 50;
+                sectionId = current.getAttribute('id');
+
+                if (scrollY > sectionTop && scrollY <= sectionTop + sectionHeight) {
+                    document.querySelector('.vertical-menu a[href*=' + sectionId + ']').classList.add('active');
+                } else {
+                    document.querySelector('.vertical-menu a[href*=' + sectionId + ']').classList.remove('active');
+                }
+            });
+        }
+
+        function show_menu() {
+            var menus = document.getElementsByClassName('vertical-menu');
+
+            for (var menu of menus) {
+                if (menu.classList.contains('d-none')) {
+                    menu.classList.remove('d-none');
+                }
+                else {
+                    menu.classList.add('d-none');
+                }
+            }
+        }
+
+        var input = document.querySelectorAll('input');
+        for (var i=0; i<input.length; i++) {
+            if (input[i].placeholder !== '') {
+                input[i].setAttribute('size', input[i].getAttribute('placeholder').length);
+            }
+        }
+
+        document.querySelector('input[list]').addEventListener('input', function(e) {
+            var input = e.target,
+                list = input.getAttribute('list'),
+                options = document.querySelectorAll('#' + list + ' option'),
+                hiddenInput = document.getElementById(input.getAttribute('id') + '-hidden'),
+                label = input.value;
+
+            hiddenInput.value = label;
+            for(var i = 0; i < options.length; i++) {
+                var option = options[i];
+
+                if(option.innerText === label) {
+                    hiddenInput.value = option.getAttribute('data-value');
+                    break;
+                }
+            }
+        });
+        document.getElementById('buildsForm').addEventListener('submit', function(e) {
+            clear_svg_call_plots_manager();
+            e.preventDefault();
+        });
+
+        const build_results = {
+            0: 'SUCCESS',
+            1: 'FAILURE',
+            2: 'ABORTED'
+        }
+
+        function convert_result(result)
+        {
+            return build_results[result];
+        }
+
+        function clear_svg_call_plots_manager()
+        {
+            document.getElementById('plot').innerHTML = '';
+            document.getElementById('vertical-menu').innerHTML = '';
+            let buildsAmount = document.getElementById('answerInput-hidden').value;
+            plot_manager(buildsAmount);
+        }
+
+        function plot_manager(filter_num)
+        {
+            const raw_data = JSON.parse('{{job_results_dict|safe}}');
+            const build_numbers = JSON.parse('{{build_numbers|safe}}');
+            for (var pipeline_name in raw_data)
+            {
+                create_plot(pipeline_name,
+                           raw_data[pipeline_name],
+                           build_numbers,
+                           filter_num);
+            }
+        }
+
+        function create_plot(pipeline_name, data, build_numbers, filter_num)
+        {
+            // Create menu entry
+            var menu = document.getElementById('vertical-menu')
+            var a_tag = document.createElement('a');
+            a_tag.href = `#${pipeline_name}`
+            a_tag.class = 'active'
+            a_tag.text = pipeline_name
+            menu.appendChild(a_tag)
+
+            // Calculate height of graph(approx. +200 every 30 builds) - default 700 for 15 builds
+            var calculatedHeight = 700 + 200 * Math.floor(filter_num / 30);
+
+            // Set the dimensions and margins of the graph
+            var margin = {top: 100, right: 50, bottom: 400, left: 50},
+                width = 1600 - margin.left - margin.right,
+                height = calculatedHeight - margin.top - margin.bottom;
+
+            // Append the svg object to the body of the page
+            var svg = d3.select('#plot')
+                .append('section')
+                .attr('id', pipeline_name)
+                .append('svg')
+                .attr('width', width + margin.left + margin.right)
+                .attr('height', height + margin.top + margin.bottom)
+                .append('g')
+                .attr('transform', 'translate(' + margin.left + ',' + margin.top + ')');
+
+            const bn = [... new Set(build_numbers[pipeline_name].slice(0, filter_num))].sort((a, b) => a - b).reverse();
+
+            let sliced_data = [];
+            for (let job_name in data) {
+                for (let i in bn)
+                {
+                    var filteredData = data[job_name].filter(function(result) {
+                        return result.build_number === bn[i];
+                    });
+                    sliced_data.push(...filteredData);
+                }
+            }
+            sliced_data.reverse();
+
+            var myGroups = d3.map(sliced_data, function(d){return d.job_name;}).keys();
+            var myVars = d3.map(sliced_data, function(d){return d.build_number;}).keys();
+
+            // Build X scales and axis:
+            var xAxis = d3.scaleBand().range([ 0, width ]).domain(myGroups).padding(0.05);
+            svg.append('g')
+                .style('font-size', 15)
+                .attr('transform', 'translate(0,' + height + ')')
+                .call(d3.axisBottom(xAxis).tickSize(0))
+                .call(g => g.select('.domain').remove())
+                .selectAll('text')
+                .style('text-anchor', 'end')
+                .attr('transform', 'rotate(-90)')
+
+
+            // Build Y scales and axis:
+            var yAxis = d3.scaleBand().range([ height, 0 ]).domain(myVars).padding(0.05)
+            svg.append('g')
+                .style('font-size', 10)
+                .call(d3.axisLeft(yAxis).tickSize(0))
+                .call(g => g.select('.domain').remove())
+                .selectAll('text')
+                .style('fill', 'blue')
+                .on('mouseover', function(d) {d3.select(this).style('cursor', 'pointer');})
+                .on('mouseout', function(d) {d3.select(this).style('cursor', 'default');})
+                .on('click', function(d) {window.open(`http://localhost:8080/job/${pipeline_name}/${d}`)});
+
+            // Build color scale
+            var colors = d3.scaleOrdinal().domain([0,2]).range(['green', 'gray', 'red'])
+
+            // Create a tooltip
+            var tooltip = d3.select(`#${pipeline_name}`)
+                .append('div')
+                .style('opacity', 0)
+                .attr('class', 'tooltip')
+                .style('background-color', 'white')
+                .style('border', 'solid')
+                .style('border-width', '2px')
+                .style('border-radius', '5px')
+                .style('padding', '5px')
+
+            // Functions that change the tooltip when user hover / move / leave a cell
+            var mouseover = function(d)
+            {
+                tooltip.style('opacity', 1)
+                d3.select(this).style('stroke', 'black').style('opacity', 1)
+            }
+            var mousemove = function(d)
+            {
+                var tooltipText = '<br>Pipeline: ' + d.pipeline_name + '<br>Job: ' + d.job_name + '<br>Build: ' + d.build_number + '<br>Result: ' + convert_result(d.build_result)
+                tooltip.html(tooltipText)
+                            .style("top", (event.pageY + 40) + "px")
+                            .style("left",(event.pageX + 20) + "px")
+            }
+            var mouseleave = function(d)
+            {
+                tooltip.style('opacity', 0)
+                var strokeStyle = function () {
+                    return 'none'
+                }
+                d3.select(this).style('stroke', strokeStyle).style('opacity', 0.8)
+            }
+
+            // Add the squares
+            svg.selectAll()
+                .data(sliced_data, function(d) {return d.job_name + ':' + d.build_number;})
+                .enter()
+                .append('rect')
+                .attr('x', function(d) { return xAxis(d.job_name) })
+                .attr('y', function(d) { return yAxis(d.build_number) })
+                .attr('rx', 4)
+                .attr('ry', 4)
+                .attr('width', xAxis.bandwidth())
+                .attr('height', yAxis.bandwidth())
+                .attr('data-legend',function(d) { return d.build_result})
+                .style('fill', function(d) {return colors(d.build_result)})
+                .style('stroke-width', 4)
+                .style('stroke', function (d) {
+                    return 'none'
+                })
+                .style('opacity', 0.8)
+                .on('mouseover', mouseover)
+                .on('mousemove', mousemove)
+                .on('mouseleave', mouseleave)
+                .on('click', 'mouseclick')
+            // Add title to graph
+            svg.append('text')
+                .attr('x', 0)
+                .attr('y', -50)
+                .attr('text-anchor', 'left')
+                .style('font-size', '22px')
+                .text(`${pipeline_name} Results`)
+                .style('fill', 'blue')
+                .on('mouseover', function(d) {d3.select(this).style('cursor', 'pointer');})
+                .on('mouseout', function(d) {d3.select(this).style('cursor', 'default');})
+                .on('click', function(d) {window.open(`http://localhost:8080/job/${pipeline_name}`)});
+        }
+    </script>
+
+    <style>
+        html {
+            scroll-behavior: smooth;
+        }
+
+        #main_content {
+            margin: 2%;
+        }
+
+        .vertical-menu {
+            width: 10%;
+            position: fixed;
+            right: 0;
+            top: 10%;
+        }
+
+        .vertical-menu a {
+            background-color: #eee;
+            color: black;
+            display: block;
+            padding: 12px;
+            text-decoration: none;
+        }
+
+        .vertical-menu a:hover {
+            background-color: #ccc;
+        }
+
+        .vertical-menu a.active {
+            background-color: #04AA6D;
+            color: white;
+        }
+    </style>
 {% endblock %}
