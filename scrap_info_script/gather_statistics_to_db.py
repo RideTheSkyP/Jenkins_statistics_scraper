@@ -2,7 +2,6 @@ import ast
 import json
 import time
 import logging
-import sqlite3
 import requests
 import argparse
 import datetime
@@ -33,6 +32,9 @@ ch.setFormatter(formatter)
 
 log.addHandler(fh)
 log.addHandler(ch)
+
+jobs_dict = {}
+errors_dict = {}
 
 
 class Result(Enum):
@@ -165,8 +167,22 @@ def insert_into_job_results_table(pipeline_id, job_id, build_id, build_url, buil
     return job_result_id
 
 
+def add_to_dict(pipeline_name, job_name, job_number, build_url, result, build_timestamp, build_git_sha, log_link,
+                job_number_internal):
+    if pipeline_name not in jobs_dict:
+        jobs_dict[pipeline_name] = {}
+    if job_name not in jobs_dict.get(pipeline_name):
+        jobs_dict[pipeline_name][job_name] = []
+    jobs_dict[pipeline_name][job_name].append({'build_number': job_number,
+                                               'build_url': build_url,
+                                               'build_result': result,
+                                               'build_timestamp': build_timestamp,
+                                               'build_git_sha': build_git_sha,
+                                               'log_link': log_link,
+                                               'job_number_internal': job_number_internal})
+
+
 def get_jobs_info_into_dict(jobs):
-    jobs_dict = {}
     for job in jobs:
         job_info = scrap_jenkins_info(job['url'])
         pipeline_name = job_info['name']
@@ -186,13 +202,16 @@ def get_jobs_info_into_dict(jobs):
                 pipeline_url = f'{build["url"]}/wfapi'
                 resp = requests.get(pipeline_url).text
                 stages = ast.literal_eval(resp)['stages']
+                if not stages:
+                    add_to_dict(pipeline_name, job_name, job_number, build_info['url'], result,
+                                build_info['timestamp'], build_git_sha, None, None)
                 for stage in stages:
                     link = stage['_links']['self']['href']
                     r = ast.literal_eval(requests.get(f'{constants.jenkins_base_url}/{link}').text)
                     stage_flow_nodes = r['stageFlowNodes']
                     for node in stage_flow_nodes:
-                        log_link = node['_links']['log']['href']
-                        req = json.loads(requests.get(f'{constants.jenkins_base_url}/{log_link}').text)
+                        log_link = f'{constants.jenkins_base_url}/{node["_links"]["log"]["href"]}'
+                        req = json.loads(requests.get(log_link).text)
                         parsed_html = BeautifulSoup(req['text'], 'html.parser')
                         text = parsed_html.text
                         text_list = text.split('completed:')
@@ -203,28 +222,27 @@ def get_jobs_info_into_dict(jobs):
                             job_name = job_name.strip()
                             result = completed.strip()
                             job_number_internal = job_number_internal.split('#')[1].strip()
+
                             if pipeline_name not in jobs_dict:
                                 jobs_dict[pipeline_name] = {}
                             if job_name not in jobs_dict.get(pipeline_name):
                                 jobs_dict[pipeline_name][job_name] = []
-                            jobs_dict[pipeline_name][job_name].append({'build_number': job_number,
-                                                                       'build_url': build_info['url'],
-                                                                       'build_result': result,
-                                                                       'build_timestamp': build_info['timestamp'],
-                                                                       'build_git_sha': build_git_sha,
-                                                                       'log_link': log_link})
-    return jobs_dict
+                            add_to_dict(pipeline_name, job_name, job_number, build_info['url'], result,
+                                        build_info['timestamp'], build_git_sha, log_link, job_number_internal)
+            else:
+                add_to_dict(pipeline_name, job_name, job_number, build_info['url'], result, build_info['timestamp'],
+                            build_git_sha, None, None)
 
 
 def gather_pipelines_info():
     jobs = scrap_jenkins_info(constants.jenkins_base_url)['jobs']
-    jobs_dict = get_jobs_info_into_dict(jobs)
+    get_jobs_info_into_dict(jobs)
 
     for pipeline_name in jobs_dict:
         pipeline_id = insert_into_pipelines_table(pipeline_name)
         for job in jobs_dict.get(pipeline_name):
             job_id = insert_into_jobs_table(pipeline_id, job)
-            for build in jobs_dict.get(pipeline_name).get(job):
+            for index, build in enumerate(jobs_dict.get(pipeline_name).get(job)):
                 build_id = insert_into_builds_table(job_id,
                                                     build['build_number'],
                                                     build['build_timestamp'])
@@ -232,11 +250,77 @@ def gather_pipelines_info():
                                                               build['build_url'],
                                                               build['build_result'],
                                                               build['build_git_sha'])
-    return jobs_dict
+                jobs_dict[pipeline_name][job][index]['pipeline_id'] = pipeline_id
+                jobs_dict[pipeline_name][job][index]['job_id'] = job_id
+                jobs_dict[pipeline_name][job][index]['build_id'] = build_id
+                jobs_dict[pipeline_name][job][index]['job_result_id'] = job_result_id
+
+
+def store_to_errors_dict(pipeline_name, job_name, build_result, job_number, error_type, error_file,
+                         error_message, pipeline_id, job_id, build_id, job_result_id):
+    if pipeline_name not in errors_dict:
+        errors_dict[pipeline_name] = {}
+    if job_name not in errors_dict.get(pipeline_name):
+        errors_dict[pipeline_name][job_name] = []
+    errors_dict[pipeline_name][job_name].append({'pipeline_id': pipeline_id,
+                                                 'job_id': job_id,
+                                                 'build_id': build_id,
+                                                 'job_result_id': job_result_id,
+                                                 'pipeline_name': pipeline_name,
+                                                 'job_name': job_name,
+                                                 'build_result': build_result,
+                                                 'job_number': job_number,
+                                                 'error_type': error_type,
+                                                 'error_file': error_file,
+                                                 'error_message': error_message})
+
+
+def gather_job_logs():
+    for pipeline in jobs_dict:
+        for job in jobs_dict.get(pipeline):
+            for index, build in enumerate(jobs_dict.get(pipeline).get(job)):
+                if build.get('build_result') != 'SUCCESS':
+                    pipeline_id = build.get('pipeline_id')
+                    job_id = build.get('job_id')
+                    build_id = build.get('build_id')
+                    job_result_id = build.get('job_result_id')
+                    job_number = build.get('job_number_internal') if build.get('job_number_internal') else build.get(
+                        'build_number')
+                    link = f'{constants.jenkins_base_url}/job/{pipeline}/{job_number}/consoleText'
+                    text = requests.get(link).text
+                    if 'AssertionError' in text:
+                        error_text = text.split('+')[-1].split('\n')
+                        error_file = error_text[0].split('python3')[1].strip()
+                        error_message = [t for t in error_text if 'assert' in t][0].strip()
+                        error_type = 'AssertionError'
+                        store_to_errors_dict(pipeline, job, build.get('build_result'), job_number,
+                                             error_type, error_file, error_message, pipeline_id, job_id, build_id,
+                                             job_result_id)
+                    elif 'WorkflowScript' in text:
+                        error_text = text.split('startup failed:')[-1].split('\n')
+                        error_file = None
+                        error_type = 'WorkflowScript'
+                        for index, t in enumerate(error_text):
+                            if 'WorkflowScript' in t:
+                                error_message = '\n'.join(error_text[index:index + 2])
+                                store_to_errors_dict(pipeline, job, build.get('build_result'), job_number,
+                                                     error_type, error_file, error_message, pipeline_id, job_id,
+                                                     build_id, job_result_id)
+                    elif 'GitException' in text:
+                        error_file = None
+                        error_type = 'GitException'
+                        error_message = [t for t in text.split('\n') if 'fatal' in t][0].strip()
+                        store_to_errors_dict(pipeline, job, build.get('build_result'), job_number,
+                                             error_type, error_file, error_message, pipeline_id, job_id, build_id,
+                                             job_result_id)
+                    else:
+                        print('ELSE NOT CAUGHT ERROR', text)
 
 
 def main():
-    jobs_dict = gather_pipelines_info()
+    gather_pipelines_info()
+    gather_job_logs()
+    print(json.dumps(errors_dict, indent=4))
 
 
 if __name__ == '__main__':
