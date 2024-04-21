@@ -39,3 +39,14 @@ class JobResults(models.Model):
 
     class Meta:
         unique_together = ('pipeline', 'job', 'build')
+
+
+class JobFailures(models.Model):
+    pipeline = models.ForeignKey(Pipeline, on_delete=models.CASCADE)
+    job = models.ForeignKey(Job, on_delete=models.CASCADE)
+    build = models.ForeignKey(Build, on_delete=models.CASCADE)
+    job_result = models.ForeignKey(JobResults, on_delete=models.CASCADE)
+    error_type = models.CharField(max_length=100)
+    error_file = models.CharField(max_length=100, null=True)
+    error_message = models.CharField(max_length=1000)
+
