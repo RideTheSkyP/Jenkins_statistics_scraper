@@ -28,6 +28,9 @@ class Build(models.Model):
     class Meta:
         unique_together = ('job', 'build_number')
 
+    def __str__(self):
+        return str(self.build_number)
+
 
 class JobResults(models.Model):
     pipeline = models.ForeignKey(Pipeline, on_delete=models.CASCADE)
@@ -40,6 +43,9 @@ class JobResults(models.Model):
     class Meta:
         unique_together = ('pipeline', 'job', 'build')
 
+    def __str__(self):
+        return str(self.build_result)
+
 
 class JobFailures(models.Model):
     pipeline = models.ForeignKey(Pipeline, on_delete=models.CASCADE)
@@ -50,3 +56,5 @@ class JobFailures(models.Model):
     error_file = models.CharField(max_length=100, null=True)
     error_message = models.CharField(max_length=1000)
 
+    def __str__(self):
+        return str(self.error_type)

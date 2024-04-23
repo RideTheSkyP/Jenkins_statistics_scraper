@@ -62,6 +62,7 @@ def insert_to_db_by_api(url, data):
     while not success:
         try:
             response = requests.post(url, json=data)
+            print(f'Inserted data: {data} to url: {url}')
             if not response.ok:
                 raise Exception(response.text)
             success = True
@@ -105,6 +106,14 @@ def get_job_result_id_from_db(pipeline_id, job_id, build_id):
     job_result_info = json.loads(response.text)
     job_result_id = job_result_info[0].get('id') if response.ok and job_result_info else None
     return job_result_id
+
+
+def get_job_failure_ids_from_db(pipeline_id, job_id, build_id):
+    site_job_failure_rest_api = f'{constants.site_job_failures_rest_api}?pipeline_id={pipeline_id}&job_id={job_id}&build_id={build_id}&format=json'
+    response = requests.get(site_job_failure_rest_api)
+    job_failure_info = json.loads(response.text)
+    job_failure_ids = [job.get('id') for job in job_failure_info if response.ok and job_failure_info]
+    return job_failure_ids
 
 
 def insert_into_pipelines_table(pipeline_name):
@@ -165,6 +174,26 @@ def insert_into_job_results_table(pipeline_id, job_id, build_id, build_url, buil
         job_result_id = json.loads(response.text)['id']
         log.info(f'New job_result entry detected, created entry for: {data}.')
     return job_result_id
+
+
+def insert_into_job_failures_table(pipeline_id, job_id, build_id, job_result_id, error_type,
+                                   error_file, error_message, failures_amount):
+    job_failures_ids = get_job_failure_ids_from_db(pipeline_id, job_id, build_id)
+    if len(job_failures_ids) <= failures_amount:
+        data = {'pipeline_id': pipeline_id,
+                'job_id': job_id,
+                'build_id': build_id,
+                'job_result_id': job_result_id,
+                'error_type': error_type,
+                'error_file': error_file,
+                'error_message': error_message}
+        response = insert_to_db_by_api(constants.site_job_failures_rest_api, data)
+        if not response.ok:
+            raise Exception(f'Couldn\'t insert data: {data} to job_failures table. '
+                            f'Response: {response}, {response.content}.')
+        job_failures_ids = json.loads(response.text)['id']
+        log.info(f'New job_failure entry detected, created entry for: {data}.')
+    return job_failures_ids
 
 
 def add_to_dict(pipeline_name, job_name, job_number, build_url, result, build_timestamp, build_git_sha, log_link,
@@ -257,7 +286,7 @@ def gather_pipelines_info():
 
 
 def store_to_errors_dict(pipeline_name, job_name, build_result, job_number, error_type, error_file,
-                         error_message, pipeline_id, job_id, build_id, job_result_id):
+                         error_message, pipeline_id, job_id, build_id, job_result_id, failures_counter):
     if pipeline_name not in errors_dict:
         errors_dict[pipeline_name] = {}
     if job_name not in errors_dict.get(pipeline_name):
@@ -272,20 +301,21 @@ def store_to_errors_dict(pipeline_name, job_name, build_result, job_number, erro
                                                  'job_number': job_number,
                                                  'error_type': error_type,
                                                  'error_file': error_file,
-                                                 'error_message': error_message})
+                                                 'error_message': error_message,
+                                                 'failures_counter': failures_counter})
 
 
-def gather_job_logs():
+def get_failed_job_logs_to_dict():
     for pipeline in jobs_dict:
         for job in jobs_dict.get(pipeline):
             for index, build in enumerate(jobs_dict.get(pipeline).get(job)):
                 if build.get('build_result') != 'SUCCESS':
+                    failures_counter = 1
                     pipeline_id = build.get('pipeline_id')
                     job_id = build.get('job_id')
                     build_id = build.get('build_id')
                     job_result_id = build.get('job_result_id')
-                    job_number = build.get('job_number_internal') if build.get('job_number_internal') else build.get(
-                        'build_number')
+                    job_number = build.get('job_number_internal') if build.get('job_number_internal') else build.get('build_number')
                     link = f'{constants.jenkins_base_url}/job/{pipeline}/{job_number}/consoleText'
                     text = requests.get(link).text
                     if 'AssertionError' in text:
@@ -295,8 +325,9 @@ def gather_job_logs():
                         error_type = 'AssertionError'
                         store_to_errors_dict(pipeline, job, build.get('build_result'), job_number,
                                              error_type, error_file, error_message, pipeline_id, job_id, build_id,
-                                             job_result_id)
+                                             job_result_id, failures_counter)
                     elif 'WorkflowScript' in text:
+                        failures_counter = text.count('WorkflowScript')
                         error_text = text.split('startup failed:')[-1].split('\n')
                         error_file = None
                         error_type = 'WorkflowScript'
@@ -305,22 +336,38 @@ def gather_job_logs():
                                 error_message = '\n'.join(error_text[index:index + 2])
                                 store_to_errors_dict(pipeline, job, build.get('build_result'), job_number,
                                                      error_type, error_file, error_message, pipeline_id, job_id,
-                                                     build_id, job_result_id)
+                                                     build_id, job_result_id, failures_counter)
                     elif 'GitException' in text:
                         error_file = None
                         error_type = 'GitException'
                         error_message = [t for t in text.split('\n') if 'fatal' in t][0].strip()
                         store_to_errors_dict(pipeline, job, build.get('build_result'), job_number,
                                              error_type, error_file, error_message, pipeline_id, job_id, build_id,
-                                             job_result_id)
+                                             job_result_id, failures_counter)
                     else:
                         print('ELSE NOT CAUGHT ERROR', text)
+
+
+def gather_job_logs():
+    get_failed_job_logs_to_dict()
+
+    for pipeline_name in errors_dict:
+        for job in errors_dict.get(pipeline_name):
+            for index, build in enumerate(errors_dict.get(pipeline_name).get(job)):
+                job_failure_id = insert_into_job_failures_table(build.get('pipeline_id'),
+                                                                build.get('job_id'),
+                                                                build.get('build_id'),
+                                                                build.get('job_result_id'),
+                                                                build.get('error_type'),
+                                                                build.get('error_file'),
+                                                                build.get('error_message'),
+                                                                build.get('failures_counter'))
 
 
 def main():
     gather_pipelines_info()
     gather_job_logs()
-    print(json.dumps(errors_dict, indent=4))
+    # print(json.dumps(errors_dict, indent=4))
 
 
 if __name__ == '__main__':

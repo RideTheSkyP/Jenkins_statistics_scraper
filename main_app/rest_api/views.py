@@ -221,7 +221,7 @@ class JobResultListApiView(ListCreateAPIView):
 
     def get_queryset(self):
         queryset = JobResults.objects.all()
-        pipeline_id = self.request.query_params.get('pipeline_id'),
+        pipeline_id = self.request.query_params.get('pipeline_id')
         job_id = self.request.query_params.get('job_id')
         build_id = self.request.query_params.get('build_id')
         build_result = self.request.query_params.get('build_result')
@@ -298,11 +298,12 @@ class JobFailuresListApiView(ListCreateAPIView):
 
     def get_queryset(self):
         queryset = JobFailures.objects.all()
-        pipeline_id = self.request.query_params.get('pipeline_id'),
+        pipeline_id = self.request.query_params.get('pipeline_id')
         job_id = self.request.query_params.get('job_id')
         build_id = self.request.query_params.get('build_id')
         job_result_id = self.request.query_params.get('job_result_id')
         error_type = self.request.query_params.get('error_type')
+        error_file = self.request.query_params.get('error_file')
 
         if pipeline_id is not None:
             queryset = queryset.filter(pipeline_id=pipeline_id)
@@ -314,29 +315,31 @@ class JobFailuresListApiView(ListCreateAPIView):
             queryset = queryset.filter(job_result_id=job_result_id)
         if error_type is not None:
             queryset = queryset.filter(error_type=error_type)
+        if error_file is not None:
+            queryset = queryset.filter(error_file=error_file)
         return queryset
 
 
 class JobFailuresDetailApiView(APIView):
     # permission_classes = [permissions.IsAuthenticated]
-    def get_object(self, job_result):
+    def get_object(self, job_failure_id):
         try:
-            if isinstance(job_result, int):
-                return JobFailures.objects.get(id=job_result)
+            if isinstance(job_failure_id, int):
+                return JobFailures.objects.get(id=job_failure_id)
         except Job.DoesNotExist:
             return None
 
-    def get(self, request, job_result, *args, **kwargs):
-        job_result_instance = self.get_object(job_result)
-        if not job_result_instance:
+    def get(self, request, job_failure_id, *args, **kwargs):
+        job_failure_instance = self.get_object(job_failure_id)
+        if not job_failure_instance:
             return Response({'res': 'Object with build id does not exist.'}, status=status.HTTP_400_BAD_REQUEST)
 
-        serializer = JobFailuresSerializer(job_result_instance, many=True)
+        serializer = JobFailuresSerializer(job_failure_instance, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
-    def put(self, request, job_result, *args, **kwargs):
-        job_result_instance = self.get_object(job_result)
-        if not job_result_instance:
+    def put(self, request, job_failure_id, *args, **kwargs):
+        job_job_failure_instance = self.get_object(job_failure_id)
+        if not job_job_failure_instance:
             return Response({'res': 'Object with build id does not exist.'}, status=status.HTTP_400_BAD_REQUEST)
         data = {'pipeline': request.data.get('pipeline_id'),
                 'job': request.data.get('job_id'),
@@ -345,15 +348,15 @@ class JobFailuresDetailApiView(APIView):
                 'error_type': request.data.get('error_type'),
                 'error_file': request.data.get('error_file'),
                 'error_message': request.data.get('error_message')}
-        serializer = JobFailuresSerializer(instance=job_result_instance, data=data, partial=True)
+        serializer = JobFailuresSerializer(instance=job_job_failure_instance, data=data, partial=True)
         if serializer.is_valid():
             serializer.save()
             return Response(serializer.data, status=status.HTTP_200_OK)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-    def delete(self, request, job_result, *args, **kwargs):
-        job_result_instance = self.get_object(job_result)
-        if not job_result_instance:
+    def delete(self, request, job_failure_id, *args, **kwargs):
+        job_job_failure_instance = self.get_object(job_failure_id)
+        if not job_job_failure_instance:
             return Response({'res': 'Object with build id does not exist.'}, status=status.HTTP_400_BAD_REQUEST)
-        job_result_instance.delete()
+        job_job_failure_instance.delete()
         return Response({'res': 'Object deleted!'}, status=status.HTTP_200_OK)
