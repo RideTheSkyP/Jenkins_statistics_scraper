@@ -3,8 +3,8 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.generics import ListCreateAPIView
 
-from jenkins_statistics.models import Pipeline, Job, Build, JobResults
-from .serializers import PipelineSerializer, JobSerializer, BuildSerializer, JobResultsSerializer
+from jenkins_statistics.models import Pipeline, Job, Build, JobResults, JobFailures
+from .serializers import PipelineSerializer, JobSerializer, BuildSerializer, JobResultsSerializer, JobFailuresSerializer
 
 
 class PipelineListApiView(ListCreateAPIView):
@@ -258,12 +258,94 @@ class JobResultDetailApiView(APIView):
         job_result_instance = self.get_object(job_result)
         if not job_result_instance:
             return Response({'res': 'Object with build id does not exist.'}, status=status.HTTP_400_BAD_REQUEST)
-        data = {'job': request.data.get('job_id'),
+        data = {'pipeline': request.data.get('pipeline_id'),
+                'job': request.data.get('job_id'),
                 'build': request.data.get('build_id'),
                 'build_url': request.data.get('build_url'),
                 'build_result': request.data.get('build_result'),
                 'build_git_sha': request.data.get('build_git_sha')}
         serializer = JobResultsSerializer(instance=job_result_instance, data=data, partial=True)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data, status=status.HTTP_200_OK)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    def delete(self, request, job_result, *args, **kwargs):
+        job_result_instance = self.get_object(job_result)
+        if not job_result_instance:
+            return Response({'res': 'Object with build id does not exist.'}, status=status.HTTP_400_BAD_REQUEST)
+        job_result_instance.delete()
+        return Response({'res': 'Object deleted!'}, status=status.HTTP_200_OK)
+
+
+class JobFailuresListApiView(ListCreateAPIView):
+    # permission_classes = [permissions.IsAuthenticated]
+    serializer_class = JobFailuresSerializer
+
+    def post(self, request, *args, **kwargs):
+        data = {'pipeline': request.data.get('pipeline_id'),
+                'job': request.data.get('job_id'),
+                'build': request.data.get('build_id'),
+                'job_result': request.data.get('job_result_id'),
+                'error_type': request.data.get('error_type'),
+                'error_file': request.data.get('error_file'),
+                'error_message': request.data.get('error_message')}
+        serializer = JobFailuresSerializer(data=data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    def get_queryset(self):
+        queryset = JobFailures.objects.all()
+        pipeline_id = self.request.query_params.get('pipeline_id'),
+        job_id = self.request.query_params.get('job_id')
+        build_id = self.request.query_params.get('build_id')
+        job_result_id = self.request.query_params.get('job_result_id')
+        error_type = self.request.query_params.get('error_type')
+
+        if pipeline_id is not None:
+            queryset = queryset.filter(pipeline_id=pipeline_id)
+        if job_id is not None:
+            queryset = queryset.filter(job_id=job_id)
+        if build_id is not None:
+            queryset = queryset.filter(build_id=build_id)
+        if job_result_id is not None:
+            queryset = queryset.filter(job_result_id=job_result_id)
+        if error_type is not None:
+            queryset = queryset.filter(error_type=error_type)
+        return queryset
+
+
+class JobFailuresDetailApiView(APIView):
+    # permission_classes = [permissions.IsAuthenticated]
+    def get_object(self, job_result):
+        try:
+            if isinstance(job_result, int):
+                return JobFailures.objects.get(id=job_result)
+        except Job.DoesNotExist:
+            return None
+
+    def get(self, request, job_result, *args, **kwargs):
+        job_result_instance = self.get_object(job_result)
+        if not job_result_instance:
+            return Response({'res': 'Object with build id does not exist.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        serializer = JobFailuresSerializer(job_result_instance, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+    def put(self, request, job_result, *args, **kwargs):
+        job_result_instance = self.get_object(job_result)
+        if not job_result_instance:
+            return Response({'res': 'Object with build id does not exist.'}, status=status.HTTP_400_BAD_REQUEST)
+        data = {'pipeline': request.data.get('pipeline_id'),
+                'job': request.data.get('job_id'),
+                'build': request.data.get('build_id'),
+                'job_result': request.data.get('job_result_id'),
+                'error_type': request.data.get('error_type'),
+                'error_file': request.data.get('error_file'),
+                'error_message': request.data.get('error_message')}
+        serializer = JobFailuresSerializer(instance=job_result_instance, data=data, partial=True)
         if serializer.is_valid():
             serializer.save()
             return Response(serializer.data, status=status.HTTP_200_OK)

@@ -14,5 +14,8 @@ urlpatterns = [
     path('builds/<int:build_id>', views.BuildDetailApiView.as_view()),
     path('job_results/', views.JobResultListApiView.as_view()),
     path('job_results/<int:job_result>', views.JobResultDetailApiView.as_view()),
-    path('job_results/<str:job_result>', views.JobResultDetailApiView.as_view())
+    path('job_results/<str:job_result>', views.JobResultDetailApiView.as_view()),
+    path('job_failures/', views.JobFailuresListApiView.as_view()),
+    path('job_failures/<int:job_failure>', views.JobFailuresDetailApiView.as_view()),
+    path('job_failures/<str:job_failure>', views.JobFailuresDetailApiView.as_view())
 ]

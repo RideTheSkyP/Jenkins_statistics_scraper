@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from jenkins_statistics.models import Pipeline, Job, Build, JobResults
+from jenkins_statistics.models import Pipeline, Job, Build, JobResults, JobFailures
 
 
 class PipelineSerializer(serializers.ModelSerializer):
@@ -33,3 +33,14 @@ class JobResultsSerializer(serializers.ModelSerializer):
     class Meta:
         model = JobResults
         fields = ['id', 'pipeline', 'job', 'build', 'build_url', 'build_result', 'build_git_sha']
+
+
+class JobFailuresSerializer(serializers.ModelSerializer):
+    job = serializers.SlugRelatedField(slug_field='id', queryset=Job.objects.all())
+    build = serializers.SlugRelatedField(slug_field='id', queryset=Build.objects.all())
+    pipeline = serializers.SlugRelatedField(slug_field='id', queryset=Pipeline.objects.all())
+    job_result = serializers.SlugRelatedField(slug_field='id', queryset=JobResults.objects.all())
+
+    class Meta:
+        model = JobFailures
+        fields = ['id', 'pipeline', 'job', 'build', 'job_result', 'error_type', 'error_file', 'error_message']
