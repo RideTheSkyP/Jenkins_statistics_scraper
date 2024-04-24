@@ -1,9 +1,115 @@
 {% extends 'base.html' %}
+{% load extra_tags %}
 
 {% block body_header %}
     <link rel='stylesheet' href='https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/fontawesome.min.css' integrity='sha512-d0olNN35C6VLiulAobxYHZiXJmq+vl+BGIgAxQtD5+kqudro/xNMvv2yIHAciGHpExsIbKX3iLg+0B6d0k4+ZA==' crossorigin='anonymous' referrerpolicy='no-referrer' />
+    <link href="https://cdn.jsdelivr.net/gh/tofsjonas/sortable@latest/sortable.min.css" rel="stylesheet" />
+    <script src="https://cdn.jsdelivr.net/gh/tofsjonas/sortable@latest/sortable.min.js"></script>
     <body onload=''>
 {% endblock %}
 
 {% block body_content %}
+    <div class='vertical-menu toggled d-none' id='vertical-menu'></div>
+    <button class='hide-button btn btn-info float-right sticky-top' onclick='show_menu()'><i class='hide-button fa fa-bars'>Menu</i></button>
+{#    {{ job_failures_dict }}#}
+    <table class="sortable">
+        <thead>
+            <tr>
+                <th><span>Pipeline</span></th>
+                <th>Job</th>
+                <th>Error Type</th>
+                <th>Error File</th>
+                <th>Build</th>
+                <th>Result</th>
+                <th>Error Message</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for pipeline, pipeline_data in job_failures_dict.items %}
+                {% for job, job_data in pipeline_data.items %}
+                    {% for failure in job_data %}
+                        <tr>
+                            <td><a href='{{ failure|trim_last_number_from_url:failure.build_url }}' target='_blank'>{{ pipeline }}</a></td>
+                            <td>{{ job }}</td>
+                            <td>{{ failure.error_type }}</td>
+                            <td>{{ failure.error_file }}</td>
+                            <td><a href='{{ failure.build_url }}' target='_blank'>{{ failure.build_number }}</a></td>
+                            <td>{{ failure|convert_result_from_num_to_literal:failure.build_result }}</td>
+                            <td>{{ failure.error_message }}</td>
+                        </tr>
+                    {% endfor %}
+                {% endfor %}
+            {% endfor %}
+        </tbody>
+    </table>
+    {% for pipeline, pipeline_data in job_failures_dict.items %}
+        {{ pipeline }} <br>
+        {% for job, job_data in pipeline_data.items %}
+            {{ job }} <br>
+            {% for failure in job_data %}
+                 {{ failure }} <br>
+            {% endfor %}
+        {% endfor %}
+        <br> <br> <br>
+{#            {{ job_failures_dict|get_item:pipeline }} <br> <br> <br>#}
+    {% endfor %}
+    <script>
+        window.addEventListener('scroll', menuHighlighter);
+        window.addEventListener('onclick', menuHighlighter);
+
+        function menuHighlighter() {
+            let scrollY = window.pageYOffset;
+            const sections = document.querySelectorAll('section[id]');
+
+            sections.forEach(current => {
+                const sectionHeight = current.offsetHeight;
+                const sectionTop = (current.getBoundingClientRect().top + window.pageYOffset) - 50;
+                sectionId = current.getAttribute('id');
+
+                if (scrollY > sectionTop && scrollY <= sectionTop + sectionHeight) {
+                    document.querySelector('.vertical-menu a[href*=' + sectionId + ']').classList.add('active');
+                } else {
+                    document.querySelector('.vertical-menu a[href*=' + sectionId + ']').classList.remove('active');
+                }
+            });
+        }
+
+        function show_menu() {
+            var menus = document.getElementsByClassName('vertical-menu');
+
+            for (var menu of menus) {
+                if (menu.classList.contains('d-none')) {
+                    menu.classList.remove('d-none');
+                }
+                else {
+                    menu.classList.add('d-none');
+                }
+            }
+        }
+
+        {#var input = document.querySelectorAll('input');#}
+        {#for (var i=0; i<input.length; i++) {#}
+        {#    if (input[i].placeholder !== '') {#}
+        {#        input[i].setAttribute('size', input[i].getAttribute('placeholder').length);#}
+        {#    }#}
+        {#}#}
+        {##}
+        {#document.querySelector('input[list]').addEventListener('input', function(e) {#}
+        {#    var input = e.target,#}
+        {#        list = input.getAttribute('list'),#}
+        {#        options = document.querySelectorAll('#' + list + ' option'),#}
+        {#        hiddenInput = document.getElementById(input.getAttribute('id') + '-hidden'),#}
+        {#        label = input.value;#}
+        {##}
+        {#    hiddenInput.value = label;#}
+        {#    for(var i = 0; i < options.length; i++) {#}
+        {#        var option = options[i];#}
+        {##}
+        {#        if(option.innerText === label) {#}
+        {#            hiddenInput.value = option.getAttribute('data-value');#}
+        {#            break;#}
+        {#        }#}
+        {#    }#}
+        {#});#}
+    </script>
 {% endblock %}

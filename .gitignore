@@ -1,11 +1,6 @@
 .idea
+__pycache__
 main_app/.secret_key
-main_app/main_app/__pycache__
-main_app/rest_api/__pycache__
-main_app/rest_api/migrations/__pycache__
-main_app/jenkins_statistics/__pycache__
-main_app/jenkins_statistics/migrations/__pycache__
 main_app/db.sqlite3
-scrap_info_script/__pycache__
 scrap_info.log
 test.py
