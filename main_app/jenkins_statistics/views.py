@@ -84,6 +84,7 @@ def test_failures(request):
                                                                         'job_name': job.job_name,
                                                                         'build_number': build.build_number,
                                                                         'build_result': job_result.build_result,
+                                                                        'build_timestamp': build.build_timestamp,
                                                                         'build_url': job_result.build_url,
                                                                         'error_type': job_failure.get('error_type'),
                                                                         'error_file': job_failure.get('error_file'),

@@ -3,17 +3,16 @@
 
 {% block body_header %}
     <link rel='stylesheet' href='https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/fontawesome.min.css' integrity='sha512-d0olNN35C6VLiulAobxYHZiXJmq+vl+BGIgAxQtD5+kqudro/xNMvv2yIHAciGHpExsIbKX3iLg+0B6d0k4+ZA==' crossorigin='anonymous' referrerpolicy='no-referrer' />
-    <link href="https://cdn.jsdelivr.net/gh/tofsjonas/sortable@latest/sortable.min.css" rel="stylesheet" />
-    <script src="https://cdn.jsdelivr.net/gh/tofsjonas/sortable@latest/sortable.min.js"></script>
+    <link href='https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/css/bootstrap.min.css' rel='stylesheet' integrity='sha384-EVSTQN3/azprG1Anm3QDgpJLIm9Nao0Yz1ztcQTwFspd3yD65VohhpuuCOmLASjC' crossorigin='anonymous'>
+{#    <link href='https://cdn.jsdelivr.net/gh/tofsjonas/sortable@latest/sortable.min.css' rel='stylesheet'/>#}
+    <script src='https://cdn.jsdelivr.net/gh/tofsjonas/sortable@latest/sortable.min.js'></script>
     <body onload=''>
 {% endblock %}
 
 {% block body_content %}
-    <div class='vertical-menu toggled d-none' id='vertical-menu'></div>
-    <button class='hide-button btn btn-info float-right sticky-top' onclick='show_menu()'><i class='hide-button fa fa-bars'>Menu</i></button>
 {#    {{ job_failures_dict }}#}
-    <table class="sortable">
-        <thead>
+    <table class='sortable advanced-table table table-hover '>
+        <thead class='table-dark'>
             <tr>
                 <th><span>Pipeline</span></th>
                 <th>Job</th>
@@ -22,6 +21,7 @@
                 <th>Build</th>
                 <th>Result</th>
                 <th>Error Message</th>
+                <th id='date-timestamp'>Build Timestamp</th>
             </tr>
         </thead>
         <tbody>
@@ -36,6 +36,7 @@
                             <td><a href='{{ failure.build_url }}' target='_blank'>{{ failure.build_number }}</a></td>
                             <td>{{ failure|convert_result_from_num_to_literal:failure.build_result }}</td>
                             <td>{{ failure.error_message }}</td>
+                            <td data-sort='{{ failure|convert_literal_date_to_timestamp:failure.build_timestamp }}'>{{ failure.build_timestamp }}</td>
                         </tr>
                     {% endfor %}
                 {% endfor %}
@@ -54,62 +55,77 @@
 {#            {{ job_failures_dict|get_item:pipeline }} <br> <br> <br>#}
     {% endfor %}
     <script>
-        window.addEventListener('scroll', menuHighlighter);
-        window.addEventListener('onclick', menuHighlighter);
-
-        function menuHighlighter() {
-            let scrollY = window.pageYOffset;
-            const sections = document.querySelectorAll('section[id]');
-
-            sections.forEach(current => {
-                const sectionHeight = current.offsetHeight;
-                const sectionTop = (current.getBoundingClientRect().top + window.pageYOffset) - 50;
-                sectionId = current.getAttribute('id');
-
-                if (scrollY > sectionTop && scrollY <= sectionTop + sectionHeight) {
-                    document.querySelector('.vertical-menu a[href*=' + sectionId + ']').classList.add('active');
-                } else {
-                    document.querySelector('.vertical-menu a[href*=' + sectionId + ']').classList.remove('active');
-                }
-            });
-        }
-
-        function show_menu() {
-            var menus = document.getElementsByClassName('vertical-menu');
-
-            for (var menu of menus) {
-                if (menu.classList.contains('d-none')) {
-                    menu.classList.remove('d-none');
-                }
-                else {
-                    menu.classList.add('d-none');
-                }
+        <!-- Sort by date on load -->
+        window.addEventListener('load', function () {
+            const el = document.getElementById('date-timestamp');
+            if (el) {
+                el.click();
             }
+          });
+    </script>
+
+    <style>
+        .sortable thead th:not(.no-sort) {
+            cursor: pointer;
         }
 
-        {#var input = document.querySelectorAll('input');#}
-        {#for (var i=0; i<input.length; i++) {#}
-        {#    if (input[i].placeholder !== '') {#}
-        {#        input[i].setAttribute('size', input[i].getAttribute('placeholder').length);#}
-        {#    }#}
-        {#}#}
-        {##}
-        {#document.querySelector('input[list]').addEventListener('input', function(e) {#}
-        {#    var input = e.target,#}
-        {#        list = input.getAttribute('list'),#}
-        {#        options = document.querySelectorAll('#' + list + ' option'),#}
-        {#        hiddenInput = document.getElementById(input.getAttribute('id') + '-hidden'),#}
-        {#        label = input.value;#}
-        {##}
-        {#    hiddenInput.value = label;#}
-        {#    for(var i = 0; i < options.length; i++) {#}
-        {#        var option = options[i];#}
-        {##}
-        {#        if(option.innerText === label) {#}
-        {#            hiddenInput.value = option.getAttribute('data-value');#}
-        {#            break;#}
-        {#        }#}
-        {#    }#}
-        {#});#}
-    </script>
+        .sortable thead th:not(.no-sort)::after, .sortable thead th:not(.no-sort)::before {
+            transition: color 0.1s ease-in-out;
+            font-size: 1.2em;
+            color: transparent;
+        }
+
+        .sortable thead th:not(.no-sort)::after {
+            margin-left: 3px;
+            content: "▸";
+        }
+
+        .sortable thead th:not(.no-sort):hover::after {
+            color: inherit;
+        }
+
+        .sortable thead th:not(.no-sort)[aria-sort=descending]::after {
+            color: inherit;
+            content: "▾";
+        }
+
+        .sortable thead th:not(.no-sort)[aria-sort=ascending]::after {
+            color: inherit;
+            content: "▴";
+        }
+
+        .sortable thead th:not(.no-sort).indicator-left::after {
+            content: "";
+        }
+
+        .sortable thead th:not(.no-sort).indicator-left::before {
+            margin-right: 3px;
+            content: "▸";
+        }
+
+        .sortable thead th:not(.no-sort).indicator-left:hover::before {
+            color: inherit;
+        }
+
+        .sortable thead th:not(.no-sort).indicator-left[aria-sort=descending]::before {
+            color: inherit;
+            content: "▾";
+        }
+
+        .sortable thead th:not(.no-sort).indicator-left[aria-sort=ascending]::before {
+            color: inherit;
+            content: "▴";
+        }
+
+        table.table thead tr th{
+            border-bottom: 1px solid lightgray;
+        }
+
+        table.table tbody tr td,
+        table.table thead tr th,
+        table.table thead {
+            border-left: 1px solid lightgray;
+            border-right: 1px solid lightgray;
+        }
+    </style>
 {% endblock %}

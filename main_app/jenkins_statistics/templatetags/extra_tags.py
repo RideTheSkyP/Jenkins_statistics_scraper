@@ -1,4 +1,5 @@
 from enum import Enum
+from datetime import datetime
 from django.template.defaulttags import register
 
 
@@ -22,3 +23,8 @@ class Result(Enum):
 @register.filter
 def convert_result_from_num_to_literal(dictionary, result):
     return Result(result).name
+
+
+@register.filter
+def convert_literal_date_to_timestamp(dictionary, date):
+    return int(datetime.timestamp(date))
