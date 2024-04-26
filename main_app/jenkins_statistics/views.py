@@ -1,4 +1,5 @@
 import json
+import pandas as pd
 from django.shortcuts import render
 
 from .models import Pipeline, Job, Build, JobResults, JobFailures
@@ -51,7 +52,49 @@ def index(request):
 
 
 def test_results(request):
-    return render(request, 'test_results.html', {})
+    job_failures_dict = []
+    job_results_with_foreign_keys_joined = JobResults.objects.select_related('pipeline') \
+        .select_related('job').select_related('build').all()
+
+
+    for jr in job_results_with_foreign_keys_joined:
+        job_failures_dict.append({'pipeline_name': jr.pipeline.pipeline_name,
+                                  'job_name': jr.job.job_name,
+                                  # 'build_number': jr.build.build_number,
+                                  'build_timestamp': jr.build.build_timestamp.strftime('%m/%d/%Y'),
+                                  # 'build_url': jr.build_url,
+                                  'build_result': jr.build_result
+                                  })
+    df = pd.DataFrame(job_failures_dict)
+    # group_df = df.groupby(['pipeline_name', 'job_name', 'build_timestamp'])['build_result'].agg(['sum', 'count'])
+    # group_df['percentage'] = (group_df['sum'] / group_df['count']) * 100
+    # df = pd.merge(df, group_df, on=['pipeline_name', 'job_name', 'build_timestamp'], how='left')
+    #
+    # df.drop(['count', 'sum', 'build_result'], axis=1, inplace=True)
+    # df = df.groupby(['pipeline_name', 'job_name', 'build_timestamp']).value_counts()
+    group_df = df.groupby(['pipeline_name', 'job_name', 'build_timestamp'])
+    result_counts = group_df['build_result'].apply(lambda x: (x == 0).sum())
+    total_counts = group_df['build_result'].count()
+    percentage = (result_counts / total_counts) * 100
+    result_df = pd.DataFrame({'percentage': percentage}).reset_index()
+    df = pd.merge(group_df.size().reset_index(), result_df, on=['pipeline_name', 'job_name', 'build_timestamp'], how='left')
+    df.columns = ['pipeline_name', 'job_name', 'build_timestamp', 'total_builds', 'percentage']
+    print(df)
+    df_to_dict = df.to_dict('records')
+    result_dict = {}
+    for record in df_to_dict:
+        if not result_dict.get(record.get('pipeline_name')):
+            result_dict[record.get('pipeline_name')] = {}
+        if not result_dict.get(record.get('pipeline_name')).get(record.get('job_name')):
+            result_dict[record.get('pipeline_name')][record.get('job_name')] = []
+        result_dict[record.get('pipeline_name')][record.get('job_name')].append(record)
+    print(result_dict)
+    # sum_df = df.sum().reset_index()
+    # count_df = df.count().reset_index()
+    # mean_df = df.mean().reset_index()
+    # mean_df['build_result'] *= 100
+    # result_df = mean_df.round(2)
+    return render(request, 'test_results.html', {'df': json.dumps(result_dict)})
 
 
 def test_failures(request):

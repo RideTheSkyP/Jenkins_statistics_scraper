@@ -28,9 +28,6 @@ class Build(models.Model):
     class Meta:
         unique_together = ('job', 'build_number')
 
-    def __str__(self):
-        return str(self.build_number)
-
 
 class JobResults(models.Model):
     pipeline = models.ForeignKey(Pipeline, on_delete=models.CASCADE)
