@@ -1,9 +1,189 @@
 {% extends 'base.html' %}
 
 {% block body_header %}
-    <link rel='stylesheet' href='https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/fontawesome.min.css' integrity='sha512-d0olNN35C6VLiulAobxYHZiXJmq+vl+BGIgAxQtD5+kqudro/xNMvv2yIHAciGHpExsIbKX3iLg+0B6d0k4+ZA==' crossorigin='anonymous' referrerpolicy='no-referrer' />
+    <link href='https://cdn.jsdelivr.net/npm/bootstrap-icons/font/bootstrap-icons.css' rel='stylesheet'>
+    <link href='https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/css/bootstrap.min.css' rel='stylesheet' integrity='sha384-EVSTQN3/azprG1Anm3QDgpJLIm9Nao0Yz1ztcQTwFspd3yD65VohhpuuCOmLASjC' crossorigin='anonymous'>
+    <script src='https://cdn.jsdelivr.net/npm/chart.js'></script>
+    <script src='https://cdn.jsdelivr.net/npm/@popperjs/core@2.11.6/dist/umd/popper.min.js'></script>
+    <!-- Chart.js -->
+    <script src='https://cdn.jsdelivr.net/npm/chart.js@3.7.0/dist/chart.min.js'></script>
+
     <body onload=''>
 {% endblock %}
 
 {% block body_content %}
+    <div class='vertical-menu toggled d-none' id='vertical-menu'></div>
+    <button class='hide-button btn btn-info float-right sticky-top' onclick='show_menu()'><i class='hide-button bi bi-list'>Menu</i></button>
+    <div class='inBody'>
+        {{ df }}
+        <table>
+            <tr>
+            {% for col in df.columns %}
+                <td>{{col}}</td>
+            {% endfor %}
+                </tr>
+            {% for index, row in df.iterrows %}
+                <tr>
+                {% for cell in row %}
+                    <td>{{cell}}</td>
+                {% endfor %}
+                </tr>
+            {% endfor %}
+        </table>
+        <div id='plot'></div>
+    </div>
+    {% for pipeline, pipeline_data in job_failures_dict.items %}
+        {{ pipeline }} <br>
+        {% for job, job_data in pipeline_data.items %}
+            {{ job }} <br>
+            {% for failure in job_data %}
+                 {{ failure }} <br>
+            {% endfor %}
+        {% endfor %}
+        <br> <br> <br>
+        {#            {{ job_failures_dict|get_item:pipeline }} <br> <br> <br>#}
+    {% endfor %}
+
+    <script>
+        window.addEventListener('scroll', menuHighlighter);
+        window.addEventListener('onclick', menuHighlighter);
+
+        function menuHighlighter() {
+            console.log('menuHighlighter')
+            let scrollY = window.pageYOffset;
+            const sections = document.querySelectorAll('section[id]');
+            console.log('sections', sections)
+
+            sections.forEach(current => {
+                console.log('current', current)
+                const sectionHeight = current.offsetHeight;
+                const sectionTop = (current.getBoundingClientRect().top + window.pageYOffset) - 50;
+                var sectionId = current.getAttribute('id');
+
+                if (scrollY > sectionTop && scrollY <= sectionTop + sectionHeight) {
+                    document.querySelector('.vertical-menu a[href*=' + sectionId + ']').classList.add('active');
+                } else {
+                    document.querySelector('.vertical-menu a[href*=' + sectionId + ']').classList.remove('active');
+                }
+            });
+        }
+
+        function show_menu() {
+            var menus = document.getElementsByClassName('vertical-menu');
+
+            for (var menu of menus) {
+                if (menu.classList.contains('d-none')) {
+                    menu.classList.remove('d-none');
+                }
+                else {
+                    menu.classList.add('d-none');
+                }
+            }
+        }
+
+        const raw_data = JSON.parse('{{df|safe}}');
+        for (var pipeline_name in raw_data)
+        {
+            for (var job_name in raw_data[pipeline_name]) {
+                create_plot(pipeline_name, job_name, raw_data[pipeline_name][job_name]);
+            }
+        }
+        console.log('raw_data', raw_data)
+        // Sample data for the chart
+        function create_plot(pipeline_name, job_name, job_data) {
+            console.log(pipeline_name, job_name, job_data);
+            var menu = document.getElementById('vertical-menu');
+            var plot = document.getElementById('plot');
+            var section = document.createElement('section');
+            section.setAttribute('id', `${pipeline_name}_${job_name}`);
+
+            var a_tag = document.createElement('a');
+            a_tag.href = `#${pipeline_name}_${job_name}`;
+            a_tag.class = 'active';
+            a_tag.text = `${pipeline_name}/${job_name}`;
+            console.log('menu.appendChild(a_tag)', a_tag)
+            menu.appendChild(a_tag);
+
+            var h2_tag = document.createElement('h2');
+            h2_tag.innerText = `${pipeline_name} pipeline ${job_name} job`;
+            section.appendChild(h2_tag);
+
+            var canvas = document.createElement('canvas');
+            canvas.setAttribute('id', `canvas_${pipeline_name}_${job_name}`);
+
+            section.appendChild(canvas);
+            plot.appendChild(section);
+
+            const data = {
+                labels: job_data['build_timestamp'],
+                datasets: [{
+                    label: 'Success percentage',
+                    data: job_data['percentage'],
+                    backgroundColor: 'rgba(54, 162, 235, 0.2)',
+                    borderColor: 'green',
+                    borderWidth: 1
+                }]
+            };
+
+            // Configuration for the chart
+            const config = {
+                type: 'line',
+                data: data,
+                options: {
+                    scales: {
+                        y: {
+                            beginAtZero: true
+                        }
+                    }
+                }
+            };
+
+            const cnvs = document.getElementById(`canvas_${pipeline_name}_${job_name}`);
+            cnvs.width = 600;
+            cnvs.height = 300;
+            // Create the chart
+            console.log(cnvs);
+            var myChart = new Chart(cnvs, config);
+        }
+    </script>
+
+    <style>
+        html {
+            scroll-behavior: smooth;
+        }
+
+        #main_content {
+            margin: 2%;
+        }
+
+        .vertical-menu {
+            width: 10%;
+            position: fixed;
+            right: 0;
+            top: 10%;
+        }
+
+        .vertical-menu a {
+            background-color: #eee;
+            color: black;
+            display: block;
+            padding: 12px;
+            text-decoration: none;
+        }
+
+        .vertical-menu a:hover {
+            background-color: #ccc;
+        }
+
+        .vertical-menu a.active {
+            background-color: #04AA6D;
+            color: white;
+        }
+
+        #plot {
+            width: 60%;
+            height: 10%;
+            margin: auto;
+        }
+    </style>
 {% endblock %}

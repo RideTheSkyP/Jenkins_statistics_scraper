@@ -38,11 +38,12 @@
         function menuHighlighter() {
             let scrollY = window.pageYOffset;
             const sections = document.querySelectorAll('section[id]');
+            console.log(sections)
 
             sections.forEach(current => {
                 const sectionHeight = current.offsetHeight;
                 const sectionTop = (current.getBoundingClientRect().top + window.pageYOffset) - 50;
-                sectionId = current.getAttribute('id');
+                var sectionId = current.getAttribute('id');
 
                 if (scrollY > sectionTop && scrollY <= sectionTop + sectionHeight) {
                     document.querySelector('.vertical-menu a[href*=' + sectionId + ']').classList.add('active');
@@ -132,10 +133,10 @@
             // Create menu entry
             var menu = document.getElementById('vertical-menu');
             var a_tag = document.createElement('a');
-            a_tag.href = `#${pipeline_name}`
-            a_tag.class = 'active'
-            a_tag.text = pipeline_name
-            menu.appendChild(a_tag)
+            a_tag.href = `#${pipeline_name}`;
+            a_tag.class = 'active';
+            a_tag.text = pipeline_name;
+            menu.appendChild(a_tag);
 
             // Calculate height of graph(approx. +200 every 30 builds) - default 700 for 15 builds
             var calculatedHeight = 700 + 200 * Math.floor(filter_num / 30);

@@ -86,8 +86,12 @@ def test_results(request):
         if not result_dict.get(record.get('pipeline_name')):
             result_dict[record.get('pipeline_name')] = {}
         if not result_dict.get(record.get('pipeline_name')).get(record.get('job_name')):
-            result_dict[record.get('pipeline_name')][record.get('job_name')] = []
-        result_dict[record.get('pipeline_name')][record.get('job_name')].append(record)
+            result_dict[record.get('pipeline_name')][record.get('job_name')] = {'build_timestamp': [],
+                                                                                'total_builds': [],
+                                                                                'percentage': []}
+        result_dict[record.get('pipeline_name')][record.get('job_name')]['build_timestamp'].append(record['build_timestamp'])
+        result_dict[record.get('pipeline_name')][record.get('job_name')]['total_builds'].append(record['total_builds'])
+        result_dict[record.get('pipeline_name')][record.get('job_name')]['percentage'].append(record['percentage'])
     print(result_dict)
     # sum_df = df.sum().reset_index()
     # count_df = df.count().reset_index()
