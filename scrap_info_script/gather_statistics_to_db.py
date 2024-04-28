@@ -40,8 +40,9 @@ errors_dict = {}
 class Result(Enum):
     SUCCESS = 0
     FAILURE = 1
-    ABORTED = 2
-    UNKNOWN = 2
+    UNSTABLE = 2
+    ABORTED = 3
+    UNKNOWN = 3
 
 
 def scrap_jenkins_info(url):
@@ -230,13 +231,14 @@ def get_jobs_info_into_dict(jobs):
             if build_info.get('_class').endswith('.WorkflowRun'):
                 pipeline_url = f'{build["url"]}/wfapi'
                 resp = requests.get(pipeline_url).text
-                stages = ast.literal_eval(resp)['stages']
+                print(resp)
+                stages = json.loads(resp)['stages']
                 if not stages:
                     add_to_dict(pipeline_name, job_name, job_number, build_info['url'], result,
                                 build_info['timestamp'], build_git_sha, None, None)
                 for stage in stages:
                     link = stage['_links']['self']['href']
-                    r = ast.literal_eval(requests.get(f'{constants.jenkins_base_url}/{link}').text)
+                    r = json.loads(requests.get(f'{constants.jenkins_base_url}/{link}').text)
                     stage_flow_nodes = r['stageFlowNodes']
                     for node in stage_flow_nodes:
                         log_link = f'{constants.jenkins_base_url}/{node["_links"]["log"]["href"]}'

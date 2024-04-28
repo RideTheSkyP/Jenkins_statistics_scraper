@@ -16,8 +16,9 @@ def trim_last_number_from_url(dictionary, url):
 class Result(Enum):
     SUCCESS = 0
     FAILURE = 1
-    ABORTED = 2
-    UNKNOWN = 2
+    UNSTABLE = 2
+    ABORTED = 3
+    UNKNOWN = 3
 
 
 @register.filter

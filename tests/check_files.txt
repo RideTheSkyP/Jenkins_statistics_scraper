@@ -32,3 +32,4 @@ scrap_info_script/gather_statistics_to_db.py
 tests/check_files.txt
 tests/run_failing_tests.py
 tests/run_tests.py
+files.txt
