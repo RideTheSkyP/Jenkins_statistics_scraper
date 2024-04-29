@@ -38,7 +38,6 @@
         function menuHighlighter() {
             let scrollY = window.pageYOffset;
             const sections = document.querySelectorAll('section[id]');
-            console.log(sections)
 
             sections.forEach(current => {
                 const sectionHeight = current.offsetHeight;
@@ -199,7 +198,7 @@
                 .on('click', function(d) {window.open(`http://localhost:8080/job/${pipeline_name}/${d}`)});
 
             // Build color scale
-            var colors = d3.scaleOrdinal().domain([0,2]).range(['green', 'gray', 'red'])
+            var colors = d3.scaleOrdinal().domain([0,2]).range(['green', 'yellow', 'red'])
 
             // Create a tooltip
             var tooltip = d3.select(`#${pipeline_name}`)
