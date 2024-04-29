@@ -18,7 +18,6 @@ class Result(Enum):
     FAILURE = 1
     UNSTABLE = 2
     ABORTED = 3
-    UNKNOWN = 3
 
 
 @register.filter

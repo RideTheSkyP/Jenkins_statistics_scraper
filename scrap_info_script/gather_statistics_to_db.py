@@ -43,6 +43,7 @@ class Result(Enum):
     UNSTABLE = 2
     ABORTED = 3
     UNKNOWN = 3
+    NOT_EXECUTED = 3
 
 
 def scrap_jenkins_info(url):
