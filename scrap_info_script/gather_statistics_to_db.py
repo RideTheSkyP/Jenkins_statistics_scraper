@@ -126,7 +126,7 @@ def insert_into_pipelines_table(pipeline_name):
         if not response.ok:
             raise Exception(f'Couldn\'t insert data: {data} to pipelines table. '
                             f'Response: {response}, {response.content}.')
-        pipeline_id = json.loads(response.text)['id']
+        pipeline_id = json.loads(response.text).get('id')
         log.info(f'New pipeline detected, created entry for: {pipeline_name}.')
     return pipeline_id
 
@@ -139,7 +139,7 @@ def insert_into_jobs_table(pipeline_id, job_name):
         if not response.ok:
             raise Exception(f'Couldn\'t insert data: {data} to jobs table. '
                             f'Response: {response}, {response.content}.')
-        job_id = json.loads(response.text)['id']
+        job_id = json.loads(response.text).get('id')
         log.info(f'New job detected, created entry for: {job_name}.')
     return job_id
 
@@ -154,7 +154,7 @@ def insert_into_builds_table(job_id, build_number, build_timestamp):
         if not response.ok:
             raise Exception(f'Couldn\'t insert data: {data} to build table. '
                             f'Response: {response}, {response.content}.')
-        build_id = json.loads(response.text)['id']
+        build_id = json.loads(response.text).get('id')
         log.info(f'New build_number detected, created entry for: {job_id}: {build_number}.')
     return build_id
 
@@ -173,7 +173,7 @@ def insert_into_job_results_table(pipeline_id, job_id, build_id, build_url, buil
         if not response.ok:
             raise Exception(f'Couldn\'t insert data: {data} to job_results table. '
                             f'Response: {response}, {response.content}.')
-        job_result_id = json.loads(response.text)['id']
+        job_result_id = json.loads(response.text).get('id')
         log.info(f'New job_result entry detected, created entry for: {data}.')
     return job_result_id
 
@@ -193,7 +193,7 @@ def insert_into_job_failures_table(pipeline_id, job_id, build_id, job_result_id,
         if not response.ok:
             raise Exception(f'Couldn\'t insert data: {data} to job_failures table. '
                             f'Response: {response}, {response.content}.')
-        job_failures_ids = json.loads(response.text)['id']
+        job_failures_ids = json.loads(response.text).get('id')
         log.info(f'New job_failure entry detected, created entry for: {data}.')
     return job_failures_ids
 
@@ -215,36 +215,34 @@ def add_to_dict(pipeline_name, job_name, job_number, build_url, result, build_ti
 
 def get_jobs_info_into_dict(jobs):
     for job in jobs:
-        job_info = scrap_jenkins_info(job['url'])
-        pipeline_name = job_info['name']
-        job_name = job_info['name']
-        job_builds = job_info['builds']
+        job_info = scrap_jenkins_info(job.get('url'))
+        pipeline_name, job_name, job_builds = job_info.get('name'), job_info.get('name'), job_info.get('builds')
         for build in job_builds:
-            result = None
+            build_info = scrap_jenkins_info(build.get('url'))
+            result = build_info.get('result')
+            job_number = build_info.get('number')
             build_git_sha = None
-            build_info = scrap_jenkins_info(build['url'])
-            for action in build_info['actions']:
-                result = build_info['result']
-                job_number = build_info['number']
+            if not result:
+                continue
+            for action in build_info.get('actions'):
                 if 'buildsByBranchName' in action:
-                    build_git_sha = action['buildsByBranchName']['refs/remotes/origin/main']['marked']['SHA1']
+                    build_git_sha = action.get('buildsByBranchName').get('refs/remotes/origin/main').get('marked').get('SHA1')
             # Detect pipeline
             if build_info.get('_class').endswith('.WorkflowRun'):
-                pipeline_url = f'{build["url"]}/wfapi'
+                pipeline_url = f'{build.get("url")}/wfapi'
                 resp = requests.get(pipeline_url).text
-                print(resp)
-                stages = json.loads(resp)['stages']
+                stages = json.loads(resp).get('stages')
                 if not stages:
-                    add_to_dict(pipeline_name, job_name, job_number, build_info['url'], result,
-                                build_info['timestamp'], build_git_sha, None, None)
+                    add_to_dict(pipeline_name, job_name, job_number, build_info.get('url'), result,
+                                build_info.get('timestamp'), build_git_sha, None, None)
                 for stage in stages:
-                    link = stage['_links']['self']['href']
+                    link = stage.get('_links').get('self').get('href')
                     r = json.loads(requests.get(f'{constants.jenkins_base_url}/{link}').text)
-                    stage_flow_nodes = r['stageFlowNodes']
+                    stage_flow_nodes = r.get('stageFlowNodes')
                     for node in stage_flow_nodes:
-                        log_link = f'{constants.jenkins_base_url}/{node["_links"]["log"]["href"]}'
+                        log_link = f'{constants.jenkins_base_url}/{node.get("_links").get("log").get("href")}'
                         req = json.loads(requests.get(log_link).text)
-                        parsed_html = BeautifulSoup(req['text'], 'html.parser')
+                        parsed_html = BeautifulSoup(req.get('text'), 'html.parser')
                         text = parsed_html.text
                         text_list = text.split('completed:')
                         if len(text_list) > 1:
@@ -259,15 +257,15 @@ def get_jobs_info_into_dict(jobs):
                                 jobs_dict[pipeline_name] = {}
                             if job_name not in jobs_dict.get(pipeline_name):
                                 jobs_dict[pipeline_name][job_name] = []
-                            add_to_dict(pipeline_name, job_name, job_number, build_info['url'], result,
-                                        build_info['timestamp'], build_git_sha, log_link, job_number_internal)
+                            add_to_dict(pipeline_name, job_name, job_number, build_info.get('url'), result,
+                                        build_info.get('timestamp'), build_git_sha, log_link, job_number_internal)
             else:
-                add_to_dict(pipeline_name, job_name, job_number, build_info['url'], result, build_info['timestamp'],
+                add_to_dict(pipeline_name, job_name, job_number, build_info.get('url'), result, build_info.get('timestamp'),
                             build_git_sha, None, None)
 
 
 def gather_pipelines_info():
-    jobs = scrap_jenkins_info(constants.jenkins_base_url)['jobs']
+    jobs = scrap_jenkins_info(constants.jenkins_base_url).get('jobs')
     get_jobs_info_into_dict(jobs)
 
     for pipeline_name in jobs_dict:
@@ -276,12 +274,12 @@ def gather_pipelines_info():
             job_id = insert_into_jobs_table(pipeline_id, job)
             for index, build in enumerate(jobs_dict.get(pipeline_name).get(job)):
                 build_id = insert_into_builds_table(job_id,
-                                                    build['build_number'],
-                                                    build['build_timestamp'])
+                                                    build.get('build_number'),
+                                                    build.get('build_timestamp'))
                 job_result_id = insert_into_job_results_table(pipeline_id, job_id, build_id,
-                                                              build['build_url'],
-                                                              build['build_result'],
-                                                              build['build_git_sha'])
+                                                              build.get('build_url'),
+                                                              build.get('build_result'),
+                                                              build.get('build_git_sha'))
                 jobs_dict[pipeline_name][job][index]['pipeline_id'] = pipeline_id
                 jobs_dict[pipeline_name][job][index]['job_id'] = job_id
                 jobs_dict[pipeline_name][job][index]['build_id'] = build_id
