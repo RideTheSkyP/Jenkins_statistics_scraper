@@ -180,6 +180,8 @@ def insert_into_job_results_table(pipeline_id, job_id, build_id, build_url, buil
 
 def insert_into_job_failures_table(pipeline_id, job_id, build_id, job_result_id, error_type,
                                    error_file, error_message, failures_amount):
+    if not error_message:
+        return None
     job_failures_ids = get_job_failure_ids_from_db(pipeline_id, job_id, build_id)
     if len(job_failures_ids) <= failures_amount:
         data = {'pipeline_id': pipeline_id,
@@ -317,7 +319,7 @@ def get_failed_job_logs_to_dict():
                     build_id = build.get('build_id')
                     job_result_id = build.get('job_result_id')
                     job_number = build.get('job_number_internal') if build.get('job_number_internal') else build.get('build_number')
-                    link = f'{constants.jenkins_base_url}/job/{pipeline}/{job_number}/consoleText'
+                    link = f'{constants.jenkins_base_url}/job/{job}/{job_number}/consoleText'
                     text = requests.get(link).text
                     if 'AssertionError' in text:
                         error_text = text.split('+')[-1].split('\n')
@@ -345,8 +347,63 @@ def get_failed_job_logs_to_dict():
                         store_to_errors_dict(pipeline, job, build.get('build_result'), job_number,
                                              error_type, error_file, error_message, pipeline_id, job_id, build_id,
                                              job_result_id, failures_counter)
+                    elif 'Found new files' in text:
+                        error_file = None
+                        error_type = 'New_files_in_repository'
+                        message_list = text.split('Found new files\n')[-1].split('\n')
+                        error_message = ''
+                        for index, message in enumerate(message_list):
+                            if 'Build step' in message:
+                                error_message = '\n'.join(message_list[:index])
+                        store_to_errors_dict(pipeline, job, build.get('build_result'), job_number,
+                                             error_type, error_file, error_message, pipeline_id, job_id, build_id,
+                                             job_result_id, failures_counter)
+                    elif 'Found missing files' in text:
+                        error_file = None
+                        error_type = 'Missing_files_in_repository'
+                        message_list = text.split('Found missing files\n')[-1].split('\n')
+                        error_message = ''
+                        for index, message in enumerate(message_list):
+                            if 'Build step' in message:
+                                error_message = '\n'.join(message_list[:index])
+                        store_to_errors_dict(pipeline, job, build.get('build_result'), job_number,
+                                             error_type, error_file, error_message, pipeline_id, job_id, build_id,
+                                             job_result_id, failures_counter)
+                    # elif 'ConnectionError' in text:
+                    #     error_file = None
+                    #     error_type = 'ConnectionError'
+                    #     error_message = [t for t in text.split('\n') if 'ConnectionError' in t][0].strip()
+                    #     print('error_messageasasaasa', error_message)
+                    #     # store_to_errors_dict(pipeline, job, build.get('build_result'), job_number,
+                    #     #                      error_type, error_file, error_message, pipeline_id, job_id, build_id,
+                    #     #                      job_result_id, failures_counter)
+                    elif 'ModuleNotFoundError' in text:
+                        error_file = None
+                        error_type = 'ModuleNotFoundError'
+                        error_message = [t for t in text.split('\n') if 'ModuleNotFoundError:' in t][0].strip()
+                        store_to_errors_dict(pipeline, job, build.get('build_result'), job_number,
+                                             error_type, error_file, error_message, pipeline_id, job_id, build_id,
+                                             job_result_id, failures_counter)
+                    elif 'can\'t open file' in text:
+                        error_file = None
+                        error_type = 'cant_open_file'
+                        error_message = [t for t in text.split('\n') if 'can\'t open file' in t][0].strip()
+                        store_to_errors_dict(pipeline, job, build.get('build_result'), job_number,
+                                             error_type, error_file, error_message, pipeline_id, job_id, build_id,
+                                             job_result_id, failures_counter)
+                    elif 'These packages are missing:' in text:
+                        error_file = None
+                        error_type = 'missing_packages'
+                        message_list = text.split('These packages are missing:\n')[-1].split('\n')
+                        error_message = ''
+                        for index, message in enumerate(message_list):
+                            if 'Build step' in message:
+                                error_message = '\n'.join(message_list[:index])
+                        store_to_errors_dict(pipeline, job, build.get('build_result'), job_number,
+                                             error_type, error_file, error_message, pipeline_id, job_id, build_id,
+                                             job_result_id, failures_counter)
                     else:
-                        print('ELSE NOT CAUGHT ERROR', text)
+                        print('ELSE NOT CAUGHT ERROR', link, build, text)
 
 
 def gather_job_logs():

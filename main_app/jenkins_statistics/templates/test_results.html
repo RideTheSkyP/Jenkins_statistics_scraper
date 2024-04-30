@@ -15,21 +15,6 @@
     <div class='vertical-menu toggled d-none' id='vertical-menu'></div>
     <button class='hide-button btn btn-info float-right sticky-top' onclick='show_menu()'><i class='hide-button bi bi-list'>Menu</i></button>
     <div class='inBody'>
-        {{ df }}
-        <table>
-            <tr>
-            {% for col in df.columns %}
-                <td>{{col}}</td>
-            {% endfor %}
-                </tr>
-            {% for index, row in df.iterrows %}
-                <tr>
-                {% for cell in row %}
-                    <td>{{cell}}</td>
-                {% endfor %}
-                </tr>
-            {% endfor %}
-        </table>
         <div id='plot'></div>
     </div>
     {% for pipeline, pipeline_data in job_failures_dict.items %}
@@ -41,7 +26,6 @@
             {% endfor %}
         {% endfor %}
         <br> <br> <br>
-        {#            {{ job_failures_dict|get_item:pipeline }} <br> <br> <br>#}
     {% endfor %}
 
     <script>
@@ -49,13 +33,10 @@
         window.addEventListener('onclick', menuHighlighter);
 
         function menuHighlighter() {
-            console.log('menuHighlighter')
             let scrollY = window.pageYOffset;
             const sections = document.querySelectorAll('section[id]');
-            console.log('sections', sections)
 
             sections.forEach(current => {
-                console.log('current', current)
                 const sectionHeight = current.offsetHeight;
                 const sectionTop = (current.getBoundingClientRect().top + window.pageYOffset) - 50;
                 var sectionId = current.getAttribute('id');
@@ -88,10 +69,9 @@
                 create_plot(pipeline_name, job_name, raw_data[pipeline_name][job_name]);
             }
         }
-        console.log('raw_data', raw_data)
+
         // Sample data for the chart
         function create_plot(pipeline_name, job_name, job_data) {
-            console.log(pipeline_name, job_name, job_data);
             var menu = document.getElementById('vertical-menu');
             var plot = document.getElementById('plot');
             var section = document.createElement('section');
@@ -101,7 +81,6 @@
             a_tag.href = `#${pipeline_name}_${job_name}`;
             a_tag.class = 'active';
             a_tag.text = `${pipeline_name}/${job_name}`;
-            console.log('menu.appendChild(a_tag)', a_tag)
             menu.appendChild(a_tag);
 
             var h2_tag = document.createElement('h2');
@@ -130,10 +109,26 @@
                 type: 'line',
                 data: data,
                 options: {
+                    plugins: {
+                        tooltip: {
+                            callbacks: {
+                                label: function (context) {
+                                    var label = context.dataset.label || '';
+                                    if (context.parsed.y !== null) {
+                                        label += ': ' + context.parsed.y;
+                                    }
+                                    return label;
+                                }
+                            }
+                        }
+                    },
                     scales: {
                         y: {
                             beginAtZero: true
                         }
+                    },
+                    onClick: function(evt, elements) {
+                        window.open(`http://localhost:8080/job/${pipeline_name}`, '_blank');
                     }
                 }
             };
@@ -142,7 +137,6 @@
             cnvs.width = 600;
             cnvs.height = 300;
             // Create the chart
-            console.log(cnvs);
             var myChart = new Chart(cnvs, config);
         }
     </script>

@@ -31,7 +31,6 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'jenkins_statistics',
-    'django_crontab',
     'rest_framework',
     'rest_api',
     'dbbackup'

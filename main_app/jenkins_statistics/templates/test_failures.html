@@ -33,7 +33,7 @@
                             <td>{{ failure.error_type }}</td>
                             <td>{{ failure.error_file }}</td>
                             <td><a href='{{ failure.build_url }}' target='_blank'>{{ failure.build_number }}</a></td>
-                            <td>{{ failure|convert_result_from_num_to_literal:failure.build_result }}</td>
+                            <td class='{% if failure.build_result == 1 %}red{% else %}yellow{% endif %}'> {{ failure|convert_result_from_num_to_literal:failure.build_result }}</td>
                             <td>{{ failure.error_message }}</td>
                             <td data-sort='{{ failure|convert_literal_date_to_timestamp:failure.build_timestamp }}'>{{ failure.build_timestamp }}</td>
                         </tr>
@@ -115,6 +115,14 @@
         table.table thead {
             border-left: 1px solid lightgray;
             border-right: 1px solid lightgray;
+        }
+
+        td.red {
+            background-color: red;
+        }
+
+        td.yellow {
+            background-color: yellow;
         }
     </style>
 {% endblock %}

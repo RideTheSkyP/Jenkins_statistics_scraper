@@ -51,7 +51,7 @@ class JobFailures(models.Model):
     job_result = models.ForeignKey(JobResults, on_delete=models.CASCADE)
     error_type = models.CharField(max_length=100)
     error_file = models.CharField(max_length=100, null=True)
-    error_message = models.CharField(max_length=1000)
+    error_message = models.CharField(max_length=3000)
 
     def __str__(self):
         return str(self.error_type)

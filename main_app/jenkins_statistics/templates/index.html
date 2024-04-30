@@ -1,6 +1,7 @@
 {% extends 'base.html' %}
 
 {% block body_header %}
+    <link href='https://cdn.jsdelivr.net/npm/bootstrap-icons/font/bootstrap-icons.css' rel='stylesheet'>
     <!-- Load d3.js -->
     <script src='https://d3js.org/d3.v4.js'></script>
     <!-- Load color palettes -->
@@ -11,7 +12,7 @@
 
 {% block body_content %}
     <div class='vertical-menu toggled d-none' id='vertical-menu'></div>
-    <button class='hide-button btn btn-info float-right sticky-top' onclick='show_menu()'><i class='hide-button fa fa-bars'>Menu</i></button>
+    <button class='hide-button btn btn-info float-right sticky-top' onclick='show_menu()'><i class='hide-button bi bi-list'>Menu</i></button>
 
     <div class='inBody'>
         <br>
@@ -261,7 +262,7 @@
                 .attr('y', -50)
                 .attr('text-anchor', 'left')
                 .style('font-size', '22px')
-                .text(`${pipeline_name} Results`)
+                .text(`Pipeline ${pipeline_name} results`)
                 .style('fill', 'blue')
                 .on('mouseover', function(d) {d3.select(this).style('cursor', 'pointer');})
                 .on('mouseout', function(d) {d3.select(this).style('cursor', 'default');})
