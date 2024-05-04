@@ -41,6 +41,8 @@ def index(request):
                                                                        'build_git_sha': job_result['build_git_sha']})
         build_numbers_by_pipelines[pipeline.pipeline_name].append(build.build_number)
     for pipeline_name in job_results_dict:
+        pipeline_build_numbers = build_numbers_by_pipelines[pipeline_name]
+        build_numbers_by_pipelines[pipeline_name] = sorted(list(set(pipeline_build_numbers)), reverse=True)
         for job_name in job_results_dict.get(pipeline_name):
             values = job_results_dict.get(pipeline_name).get(job_name)
             job_results_dict[pipeline_name][job_name] = sorted(values, key=lambda item: item['build_number'])

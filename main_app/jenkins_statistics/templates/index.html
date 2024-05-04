@@ -158,16 +158,15 @@
                 .attr('transform', 'translate(' + margin.left + ',' + margin.top + ')');
 
             const bn = [... new Set(build_numbers[pipeline_name].slice(0, filter_num))].sort((a, b) => a - b).reverse();
-
             let sliced_data = [];
-            for (let job_name in data) {
-                for (let i in bn)
-                {
-                    var filteredData = data[job_name].filter(function(result) {
-                        return result.build_number === bn[i];
-                    });
-                    sliced_data.push(...filteredData);
-                }
+            for (let i in bn)
+            {
+                for (let job_name in data) {
+                        var filteredData = data[job_name].filter(function(result) {
+                            return result.build_number === bn[i];
+                        });
+                        sliced_data.push(...filteredData);
+                    }
             }
             sliced_data.reverse();
 
@@ -199,7 +198,7 @@
                 .on('click', function(d) {window.open(`http://localhost:8080/job/${pipeline_name}/${d}`)});
 
             // Build color scale
-            var colors = d3.scaleOrdinal().domain([0,2]).range(['green', 'yellow', 'red'])
+            var colors = ['green', 'red', 'yellow', 'gray']
 
             // Create a tooltip
             var tooltip = d3.select(`#${pipeline_name}`)
@@ -246,7 +245,7 @@
                 .attr('width', xAxis.bandwidth())
                 .attr('height', yAxis.bandwidth())
                 .attr('data-legend',function(d) { return d.build_result})
-                .style('fill', function(d) {return colors(d.build_result)})
+                .style('fill', function(d) {return colors[d.build_result]})
                 .style('stroke-width', 4)
                 .style('stroke', function (d) {
                     return 'none'
