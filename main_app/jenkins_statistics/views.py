@@ -43,8 +43,17 @@ def index(request):
     for pipeline_name in job_results_dict:
         pipeline_build_numbers = build_numbers_by_pipelines[pipeline_name]
         build_numbers_by_pipelines[pipeline_name] = sorted(list(set(pipeline_build_numbers)), reverse=True)
-        for job_name in job_results_dict.get(pipeline_name):
-            values = job_results_dict.get(pipeline_name).get(job_name)
+        job_names = job_results_dict.get(pipeline_name)
+        job_names_order = ['check_files', 'aaaa', 'check_requirements', 'run_tests', 'scrap_data_to_db']
+        ordered_job_names = {}
+
+        if len(job_names.keys()) > 1:
+            for jn in job_names_order:
+                ordered_job_names[jn] = job_names[jn]
+        else:
+            ordered_job_names = job_names
+
+        for job_name, values in ordered_job_names.items():
             job_results_dict[pipeline_name][job_name] = sorted(values, key=lambda item: item['build_number'])
     context = {
         'job_results_dict': json.dumps(job_results_dict),
@@ -57,7 +66,6 @@ def test_results(request):
     job_failures_dict = []
     job_results_with_foreign_keys_joined = JobResults.objects.select_related('pipeline') \
         .select_related('job').select_related('build').all()
-
 
     for jr in job_results_with_foreign_keys_joined:
         job_failures_dict.append({'pipeline_name': jr.pipeline.pipeline_name,
