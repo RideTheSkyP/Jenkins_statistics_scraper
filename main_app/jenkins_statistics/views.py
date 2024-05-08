@@ -69,30 +69,27 @@ def test_results(request):
 
     for jr in job_results_with_foreign_keys_joined:
         job_failures_dict.append({'pipeline_name': jr.pipeline.pipeline_name,
-                                  'job_name': jr.job.job_name,
                                   'build_timestamp': jr.build.build_timestamp.strftime('%m/%d/%Y'),
                                   'build_result': jr.build_result
                                   })
     df = pd.DataFrame(job_failures_dict)
-    group_df = df.groupby(['pipeline_name', 'job_name', 'build_timestamp'])
+    group_df = df.groupby(['pipeline_name', 'build_timestamp'])
     result_counts = group_df['build_result'].apply(lambda x: (x == 0).sum())
     total_counts = group_df['build_result'].count()
-    percentage = (result_counts / total_counts) * 100
+    percentage = round((result_counts / total_counts) * 100, 2)
     result_df = pd.DataFrame({'percentage': percentage}).reset_index()
-    df = pd.merge(group_df.size().reset_index(), result_df, on=['pipeline_name', 'job_name', 'build_timestamp'], how='left')
-    df.columns = ['pipeline_name', 'job_name', 'build_timestamp', 'total_builds', 'percentage']
+    df = pd.merge(group_df.size().reset_index(), result_df, on=['pipeline_name', 'build_timestamp'], how='left')
+    df.columns = ['pipeline_name', 'build_timestamp', 'total_builds', 'percentage']
     df_to_dict = df.to_dict('records')
     result_dict = {}
     for record in df_to_dict:
         if not result_dict.get(record.get('pipeline_name')):
-            result_dict[record.get('pipeline_name')] = {}
-        if not result_dict.get(record.get('pipeline_name')).get(record.get('job_name')):
-            result_dict[record.get('pipeline_name')][record.get('job_name')] = {'build_timestamp': [],
-                                                                                'total_builds': [],
-                                                                                'percentage': []}
-        result_dict[record.get('pipeline_name')][record.get('job_name')]['build_timestamp'].append(record['build_timestamp'])
-        result_dict[record.get('pipeline_name')][record.get('job_name')]['total_builds'].append(record['total_builds'])
-        result_dict[record.get('pipeline_name')][record.get('job_name')]['percentage'].append(record['percentage'])
+            result_dict[record.get('pipeline_name')] = {'build_timestamp': [],
+                                                        'total_builds': [],
+                                                        'percentage': []}
+        result_dict[record.get('pipeline_name')]['build_timestamp'].append(record['build_timestamp'])
+        result_dict[record.get('pipeline_name')]['total_builds'].append(record['total_builds'])
+        result_dict[record.get('pipeline_name')]['percentage'].append(record['percentage'])
     return render(request, 'test_results.html', {'df': json.dumps(result_dict)})
 
 
