@@ -369,14 +369,13 @@ def get_failed_job_logs_to_dict():
                         store_to_errors_dict(pipeline, job, build.get('build_result'), job_number,
                                              error_type, error_file, error_message, pipeline_id, job_id, build_id,
                                              job_result_id, failures_counter)
-                    # elif 'ConnectionError' in text:
-                    #     error_file = None
-                    #     error_type = 'ConnectionError'
-                    #     error_message = [t for t in text.split('\n') if 'ConnectionError' in t][0].strip()
-                    #     print('error_messageasasaasa', error_message)
-                    #     # store_to_errors_dict(pipeline, job, build.get('build_result'), job_number,
-                    #     #                      error_type, error_file, error_message, pipeline_id, job_id, build_id,
-                    #     #                      job_result_id, failures_counter)
+                    elif 'requests.exceptions.ConnectionError:' in text:
+                        error_file = None
+                        error_type = 'ConnectionError'
+                        error_message = [t for t in text.split('\n') if 'requests.exceptions.ConnectionError:' in t][0].strip()
+                        store_to_errors_dict(pipeline, job, build.get('build_result'), job_number,
+                                             error_type, error_file, error_message, pipeline_id, job_id, build_id,
+                                             job_result_id, failures_counter)
                     elif 'ModuleNotFoundError' in text:
                         error_file = None
                         error_type = 'ModuleNotFoundError'

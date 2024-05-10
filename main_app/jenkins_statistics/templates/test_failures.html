@@ -9,7 +9,30 @@
 {% endblock %}
 
 {% block body_content %}
-{#    {{ job_failures_dict }}#}
+    <div>
+        <h5>This page visualizes errors on Jenkins pipelines.
+            Use the information to understand most common and identify new problems in code base or Jenkins scripts</h5>
+        <p>Pipeline: Click pipeline name to navigate to this pipeline in Jenkins<br>
+        Job: Failed job name<br>
+        Error Type: All errors are divided by their type, for example:<br></p>
+        <ul>
+            <li>New_files_in_repository: New file detected in repository and wasn't added as trusted file to check_files.txt</li>
+            <li>AssertionError: Failed python test</li>
+            <li>missing_packages: Missing required python packages to run and text application</li>
+            <li>WorkflowScript: Error in jenkins script</li>
+            <li>ModuleNotFoundError: Not found installed package</li>
+            <li>ConnectionError: Connection error in script while trying to access Jenkins API or Django Rest API</li>
+            <li>cant_open_file: Identifies problem with missing file or not correctly specified directory</li>
+        </ul>
+        <p>Error File: File where error happen<br>
+        Build: Build number. Click on the number to navigate fast to this build in Jenkins<br>
+        Result: Build result</p>
+        <ul>
+            <li>UNSTABLE: Minor error which can be ignored in pipelines, but still need to be fixed</li>
+            <li>FAILURE: Critical error which is blocking pipelines and need to be fixed as fast as you can</li>
+        </ul>
+    </div>
+
     <table class='sortable advanced-table table table-hover '>
         <thead class='table-dark'>
             <tr>
@@ -123,6 +146,27 @@
 
         td.yellow {
             background-color: yellow;
+        }
+
+        h5 {
+            padding: 20px;
+            color: #333;
+        }
+
+        p {
+            padding-left: 20px;
+            margin-bottom: 5px;
+            font-family: Arial, sans-serif;
+            font-size: 16px;
+            color: #333;
+        }
+
+        ul {
+            margin-left: 30px;
+        }
+
+        li {
+            margin-bottom: 5px; /* Optional: Adjust spacing between list items */
         }
     </style>
 {% endblock %}
